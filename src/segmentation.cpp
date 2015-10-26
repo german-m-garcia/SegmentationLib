@@ -5,7 +5,7 @@
  *      Author: martin
  */
 
-#include "Segmentation.h"
+#include "segmentation.h"
 
 using namespace std;
 using namespace cv;
