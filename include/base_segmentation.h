@@ -5,8 +5,8 @@
  *      Author: gmartin
  */
 
-#ifndef SRC_SEGMENTERLIB_H_
-#define SRC_SEGMENTERLIB_H_
+#ifndef SRC_BASESEGMENTATION_H_
+#define SRC_BASESEGMENTATION_H_
 
 #include <stdio.h>      /* printf, scanf, puts, NULL */
 #include <stdlib.h>     /* srand, rand */
@@ -37,7 +37,6 @@
 #include <opencv2/imgproc/imgproc.hpp>
 
 #include "segment.h"
-#include "base_segmentation.h"
 
 using namespace std;
 using namespace cv;
@@ -51,35 +50,55 @@ using namespace cv;
 #define COLOUR 0
 #define RGBD_SUPERVOXELS 1
 
+typedef pcl::PointXYZRGBA PointT;
+typedef pcl::PointCloud<PointT> PointCloudT;
+typedef pcl::PointNormal PointNT;
+typedef pcl::PointCloud<PointNT> PointNCloudT;
+typedef pcl::PointXYZL PointLT;
+typedef pcl::PointCloud<PointLT> PointLCloudT;
 
+typedef pcl::LCCPSegmentation<PointT>::SupervoxelAdjacencyList SuperVoxelAdjacencyList;
 
-class PCLSegmentation : public BaseSegmentation {
+class SmoothClusters {
 public:
-	PCLSegmentation();
-	virtual ~PCLSegmentation();
+	pcl::PointIndices indices_;
+	Eigen::Vector3f avg_normal_;
+	Eigen::Vector4f plane_;
 
-	void refineSupervoxels(pcl::SupervoxelClustering<PointT>& super,
-			map<uint32_t, pcl::Supervoxel<PointT>::Ptr> supervoxel_clusters,
-			vector<SmoothClusters>& smooth_clusters, Mat& res);
-	void supervoxelSegment(Mat& src,pcl::PointCloud<pcl::PointXYZRGBA>::Ptr& pcl_cloud,
-			bool rgbd_refine, Mat& outMat);
+};
 
-	void lccpSegment(Mat& src,pcl::PointCloud<PointT>::Ptr input_cloud_ptr,
-			Mat& outMat);
+class BaseSegmentation {
+public:
+	BaseSegmentation();
+	virtual ~BaseSegmentation();
 
-	void surfacePatches(Mat& src,pcl::PointCloud<pcl::PointXYZRGB>::Ptr input_cloud_ptr,
-			Mat& outMat);
+	void clean_data();
 
+	Segment* get_component_at_fast(int row, int col);
 
-	void mssegment(Mat& src, Mat& dst);
-
+	vector<Segment*>& get_segments() {
+		return segments;
+	}
 
 protected:
 	std::vector<Vec3b> mapLabels;
 	Mat component_id;
 	vector<Segment*> segments;
 	map<uint16_t,Segment*> mapSegments;
+	void show_patches(Mat &kImage,
+			pcl::PointCloud<pcl::PointXYZRGBA>::Ptr& pcl_cloud,
+			pcl::PointCloud<pcl::PointXYZRGBA>::Ptr& labeled_cloud);
+	void show_patches(Mat &kImage,
+			pcl::PointCloud<pcl::PointXYZL>::Ptr labeled_cloud);
 
+	int get_label(map<uint32_t, int>& labels, int label);
+
+
+	void read_segments(Mat& original,Mat& img);
+
+	void read_segments(Mat& img,std::map<uint32_t, pcl::Supervoxel<PointT>::Ptr>& supervoxel_clusters);
+
+	void flood_fill_post_process(Mat& img, const Scalar& colorDiff);
 
 };
 
