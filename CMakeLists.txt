@@ -8,7 +8,13 @@ find_package( OpenCV REQUIRED)
 if(OpenCV_FOUND)
 	message("OPENCV FOUND")
 	MESSAGE( STATUS ${OpenCV_DIR})
+	MESSAGE( STATUS ${OpenCV_INCLUDE_DIRS})
 endif()
+
+set(PCL_DIR "/home/gmartin/workspace/pcl/build/")
+find_package(PCL REQUIRED)
+include_directories(${PCL_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+add_definitions(${PCL_DEFINITIONS})
 
 
 add_definitions(-DHAVE_STRING_H)
@@ -22,13 +28,10 @@ set(PROJECT_SOURCE_DIR ${CMAKE_SOURCE_DIR}/src)
 set(PROJECT_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/include)
 
 
-
-
-
 #Include Required Directories
 include_directories("${PROJECT_INCLUDE_DIR}")
 include_directories("${PROJECT_SOURCE_DIR}")
-include_directories(${OpenCV_INCLUDE_DIRS})
+include_directories("${OpenCV_INCLUDE_DIRS}")
 
 
 FIND_PACKAGE( OpenMP REQUIRED)
@@ -41,17 +44,33 @@ endif()
 
 
 # Create a shared library
-add_library(SEGMENTATION
-${PROJECT_SOURCE_DIR}/segmentation.cpp
-)
+#add_library(SEGMENTATION
+#${PROJECT_SOURCE_DIR}/segmentation.cpp
+#)
+
+add_library(segmentationlib
+   src/svm_wrapper.cpp
+   src/segmentation_lib.cpp
+   src/segment.cpp
+   
+   #remove if using the latest PCL 
+   #src/lccp_segmentation.cpp
+ )
+ 
+ add_library(surfaces
+   src/surface_cluster.cpp
+   src/epbase.cpp
+   src/cluster_normals_to_planes.cpp
+   src/z_adaptive_normals.cpp
+   )
 
 
 
 #Create an Executable for segment reader
-add_executable(segment ${PROJECT_SOURCE_DIR}/segmenter.cpp)
-target_link_libraries( segment SEGMENTATION  ${OpenCV_LIBS} )
+#add_executable(segment ${PROJECT_SOURCE_DIR}/segmenter.cpp)
+#target_link_libraries( segment SEGMENTATION  ${OpenCV_LIBS} )
 
-add_executable(ms_segment ${PROJECT_SOURCE_DIR}/ms_segmenter.cpp)
-target_link_libraries( ms_segment SEGMENTATION  ${OpenCV_LIBS} )
+#add_executable(ms_segment ${PROJECT_SOURCE_DIR}/ms_segmenter.cpp)
+#target_link_libraries( ms_segment SEGMENTATION  ${OpenCV_LIBS} )
 
 
