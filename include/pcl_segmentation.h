@@ -67,10 +67,10 @@ public:
 
 };
 
-class SegmenterLib {
+class PCLSegmentation {
 public:
-	SegmenterLib();
-	virtual ~SegmenterLib();
+	PCLSegmentation();
+	virtual ~PCLSegmentation();
 
 	void refineSupervoxels(pcl::SupervoxelClustering<PointT>& super,
 			map<uint32_t, pcl::Supervoxel<PointT>::Ptr> supervoxel_clusters,

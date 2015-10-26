@@ -22,7 +22,7 @@
  */
 
 
-#include "cluster_normals_to_planes.hpp"
+#include "../include/cluster_normals_to_planes.h"
 
 namespace surface 
 {

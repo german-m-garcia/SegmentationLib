@@ -8,11 +8,12 @@
 #include <boost/graph/adjacency_matrix.hpp>
 #include <boost/graph/graph_utility.hpp>
 #include <boost/graph/connected_components.hpp>
-#include "segmenter_lib.hpp"
-#include "cluster_normals_to_planes.hpp"
+
+#include "cluster_normals_to_planes.h"
+#include "pcl_segmentation.h"
 #include "surface_cluster.h"
 
-SegmenterLib::SegmenterLib() :
+PCLSegmentation::PCLSegmentation() :
 		mapLabels(SEGMENTS) {
 	// TODO Auto-generated constructor stub
 
@@ -40,20 +41,20 @@ SegmenterLib::SegmenterLib() :
 
 }
 
-SegmenterLib::~SegmenterLib() {
+PCLSegmentation::~PCLSegmentation() {
 	// TODO Auto-generated destructor stub
 	for (int i = 0; i < segments.size(); i++)
 		delete segments[i];
 }
 
-void SegmenterLib::cleanData() {
+void PCLSegmentation::cleanData() {
 	for (int i = 0; i < segments.size(); i++)
 		delete segments[i];
 	segments.resize(0);
 	segments.reserve(SEGMENTS);
 }
 
-Segment* SegmenterLib::getComponentAt_fast(int row, int col) {
+Segment* PCLSegmentation::getComponentAt_fast(int row, int col) {
 
 	int id = (int) component_id.at<uint16_t>(row, col);
 	if (id == 0)
@@ -63,7 +64,7 @@ Segment* SegmenterLib::getComponentAt_fast(int row, int col) {
 }
 
 // show resulting segmentation to png image
-void SegmenterLib::showPatches(cv::Mat &kImage,
+void PCLSegmentation::showPatches(cv::Mat &kImage,
 		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr& pcl_cloud,
 		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr& labeled_cloud) {
 // create color image
@@ -87,7 +88,7 @@ void SegmenterLib::showPatches(cv::Mat &kImage,
 }
 
 // show resulting segmentation to png image
-void SegmenterLib::showPatches(cv::Mat &kImage,
+void PCLSegmentation::showPatches(cv::Mat &kImage,
 		pcl::PointCloud<pcl::PointXYZL>::Ptr labeled_cloud) {
 // create color image
 	kImage = cv::Mat_<cv::Vec3b>::zeros(labeled_cloud->height,
@@ -112,7 +113,7 @@ void SegmenterLib::showPatches(cv::Mat &kImage,
 	}
 }
 
-void SegmenterLib::refineSupervoxels(pcl::SupervoxelClustering<PointT>& super,
+void PCLSegmentation::refineSupervoxels(pcl::SupervoxelClustering<PointT>& super,
 		std::map<uint32_t, pcl::Supervoxel<PointT>::Ptr> supervoxel_clusters,
 		std::vector<SmoothClusters>& smooth_clusters, cv::Mat& res) {
 
@@ -259,7 +260,7 @@ void SegmenterLib::refineSupervoxels(pcl::SupervoxelClustering<PointT>& super,
 
 }
 
-void SegmenterLib::supervoxelSegment(Mat& src,
+void PCLSegmentation::supervoxelSegment(Mat& src,
 		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr& pcl_cloud, bool rgbd_refine,
 		cv::Mat& outMat) {
 
@@ -348,7 +349,7 @@ void SegmenterLib::supervoxelSegment(Mat& src,
  bool use_sanity_criterion = true;
  *  ---------------3------------------------
  */
-void SegmenterLib::lccpSegment(Mat& src,
+void PCLSegmentation::lccpSegment(Mat& src,
 		pcl::PointCloud<PointT>::Ptr input_cloud_ptr, cv::Mat& outMat) {
 
 ///  Default values of parameters before parsing
@@ -473,7 +474,7 @@ void SegmenterLib::lccpSegment(Mat& src,
  *
  */
 
-void SegmenterLib::surfacePatches(Mat& src,
+void PCLSegmentation::surfacePatches(Mat& src,
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr input_cloud_ptr,
 		cv::Mat& outMat) {
 
@@ -484,7 +485,7 @@ void SegmenterLib::surfacePatches(Mat& src,
 
 }
 
-int SegmenterLib::getLabel(map<uint32_t, int>& labels, int label) {
+int PCLSegmentation::getLabel(map<uint32_t, int>& labels, int label) {
 	map<uint32_t, int>::iterator it = labels.find(label);
 //the label exists
 	if (it != labels.end()) {
@@ -497,7 +498,7 @@ int SegmenterLib::getLabel(map<uint32_t, int>& labels, int label) {
 	}
 }
 
-void SegmenterLib::readSegments(Mat& original, Mat& img) {
+void PCLSegmentation::readSegments(Mat& original, Mat& img) {
 
 	component_id = cv::Mat::zeros(img.size(), CV_16UC1);
 
@@ -547,7 +548,7 @@ void SegmenterLib::readSegments(Mat& original, Mat& img) {
 
 }
 
-void SegmenterLib::readSegments(Mat& img,
+void PCLSegmentation::readSegments(Mat& img,
 		std::map<uint32_t, pcl::Supervoxel<PointT>::Ptr>& supervoxel_clusters) {
 
 	cout << "SegmenterLib::readSegments > supervoxel_clusters.size()="
@@ -563,7 +564,7 @@ void SegmenterLib::readSegments(Mat& img,
  */
 
 //This colors the segmentations
-void SegmenterLib::floodFillPostprocess(Mat& img, const Scalar& colorDiff ) {
+void PCLSegmentation::floodFillPostprocess(Mat& img, const Scalar& colorDiff ) {
 	CV_Assert(!img.empty());
 	RNG rng = theRNG();
 	Mat mask(img.rows + 2, img.cols + 2, CV_8UC1, Scalar::all(0));
@@ -578,7 +579,7 @@ void SegmenterLib::floodFillPostprocess(Mat& img, const Scalar& colorDiff ) {
 	}
 }
 
-void SegmenterLib::mssegment(Mat& src, Mat& dst) {
+void PCLSegmentation::mssegment(Mat& src, Mat& dst) {
 	Mat img2;
 	int sp = 15, sr = 40;
 	//cout <<">bilateralFilter..."<<endl;

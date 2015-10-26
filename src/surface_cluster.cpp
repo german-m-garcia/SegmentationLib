@@ -41,8 +41,9 @@
 
 #include "surface_model.hpp"
 #include "z_adaptive_normals.h"
-#include "cluster_normals_to_planes.hpp"
+#include "cluster_normals_to_planes.h"
 #include "surface_cluster.h"
+
 
 
 
