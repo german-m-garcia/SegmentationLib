@@ -43,7 +43,10 @@ endif()
 # Create a shared library
 add_library(SEGMENTATION
 ${PROJECT_SOURCE_DIR}/segmentation.cpp
+
 )
+
+
 
 
 
