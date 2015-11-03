@@ -24,10 +24,10 @@ Segment::Segment(cv::Size size, cv::Point2i centre, cv::Vec3b colour)
       minRow(centre.x),
       maxCol(centre.y),
       maxRow(centre.x) {
-  img_ = cv::Mat::zeros(size, CV_8UC3);
+  mat_original_colour_ = cv::Mat::zeros(size, CV_8UC3);
   contourMat3C = cv::Mat::zeros(size, CV_8UC3);
   contourMat = cv::Mat::zeros(size, CV_8UC1);
-  img_.at<cv::Vec3b>(centre.x, centre.y) = colour;
+  mat_original_colour_.at<cv::Vec3b>(centre.x, centre.y) = colour;
 
 }
 
@@ -60,14 +60,14 @@ Segment::Segment(cv::Size size, cv::Point2i centre, uint16_t depthvalue,
       minRow(centre.x),
       maxCol(centre.y),
       maxRow(centre.x) {
-  img_ = cv::Mat::zeros(size, CV_8UC3);
+  mat_original_colour_ = cv::Mat::zeros(size, CV_8UC3);
   contourMat3C = cv::Mat::zeros(size, CV_8UC3);
   contourMat = cv::Mat::zeros(size, CV_8UC1);
-  img_.at<cv::Vec3b>(centre.x, centre.y) = colour;
+  mat_original_colour_.at<cv::Vec3b>(centre.x, centre.y) = colour;
 
   pcl_cloud.reset(new pcl::PointCloud<pcl::PointXYZRGB>);
-  pcl_cloud->width = img_.cols;
-  pcl_cloud->height = img_.rows;
+  pcl_cloud->width = mat_original_colour_.cols;
+  pcl_cloud->height = mat_original_colour_.rows;
   pcl::PointXYZRGB pt;
   pointFromDepth(depthvalue, colour, centre, pt);
   pcl_cloud->push_back(pt);
@@ -82,7 +82,7 @@ void Segment::contourize() {
   vector<cv::Vec4i> hierarchy;
   /// Find contours
   cv::Mat gray;
-  cv::cvtColor(img_, gray, CV_BGR2GRAY);
+  cv::cvtColor(mat_original_colour_, gray, CV_BGR2GRAY);
   cv::findContours(gray, contours, hierarchy, CV_RETR_EXTERNAL,
                    CV_CHAIN_APPROX_NONE, cv::Point(0, 0));
 
@@ -180,12 +180,12 @@ void Segment::addMaxX(cv::Point2i& p) {
 
 }
 
-void Segment::addPoint(cv::Point2i& p) {
+void Segment::addPoint(const cv::Point2i& p) {
   centre += p;
   centre.x /= 2;
   centre.y /= 2;
   points++;
-  img_.at<cv::Vec3b>(p.x, p.y) = colour;
+  mat_original_colour_.at<cv::Vec3b>(p.x, p.y) = colour;
   if (p.x < minRow)
     minRow = p.x;
   if (p.y < minCol)
@@ -203,7 +203,7 @@ void Segment::addPoint3D(cv::Point2i& p, cv::Vec3b colour,
   centre.x /= 2;
   centre.y /= 2;
   points++;
-  img_.at<cv::Vec3b>(p.x, p.y) = colour;
+  mat_original_colour_.at<cv::Vec3b>(p.x, p.y) = colour;
   if (p.x < minRow)
     minRow = p.x;
   if (p.y < minCol)

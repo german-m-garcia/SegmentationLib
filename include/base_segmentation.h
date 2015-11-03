@@ -94,7 +94,9 @@ protected:
 	int get_label(map<uint32_t, int>& labels, int label);
 
 
-	void read_segments(Mat& original,Mat& img);
+	void read_segments(Mat& original,Mat& segmentation_mat);
+
+	void read_segments(const Mat& original,Mat& segmentation_mat,Mat& dst);
 
 	void read_segments(Mat& img,std::map<uint32_t, pcl::Supervoxel<PointT>::Ptr>& supervoxel_clusters);
 

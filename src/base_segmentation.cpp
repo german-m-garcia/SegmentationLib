@@ -128,9 +128,9 @@ int BaseSegmentation::get_label(map<uint32_t, int>& labels, int label) {
 	}
 }
 
-void BaseSegmentation::read_segments(Mat& original, Mat& img) {
+void BaseSegmentation::read_segments(Mat& original, Mat& segmentation_mat) {
 
-	component_id = cv::Mat::zeros(img.size(), CV_16UC1);
+	component_id = cv::Mat::zeros(segmentation_mat.size(), CV_16UC1);
 
 	map<uint32_t, int> labels;
 	int labelcount = 0;
@@ -139,9 +139,9 @@ void BaseSegmentation::read_segments(Mat& original, Mat& img) {
 	cv::cvtColor(original, hsv, CV_BGR2HSV);
 
 	//go through every pixel
-	for (int i = 0; i < img.rows; i++) {
-		for (int j = 0; j < img.cols; j++) {
-			cv::Vec3b& label = img.at<cv::Vec3b>(i, j);
+	for (int i = 0; i < segmentation_mat.rows; i++) {
+		for (int j = 0; j < segmentation_mat.cols; j++) {
+			cv::Vec3b& label = segmentation_mat.at<cv::Vec3b>(i, j);
 			cv::Vec3b& colour = original.at<cv::Vec3b>(i, j);
 			uint32_t intLabel = label[2] * 1000000 + label[1] * 1000 + label[0];
 			int componentId = get_label(labels, intLabel);
@@ -175,6 +175,63 @@ void BaseSegmentation::read_segments(Mat& original, Mat& img) {
 	}
 	for (Segment* segment : segments)
 		segment->computeFeatures();
+
+}
+
+void BaseSegmentation::read_segments(const Mat& original, Mat& segmentation_mat, Mat& dst) {
+
+	component_id = cv::Mat::zeros(segmentation_mat.size(), CV_16UC1);
+	dst = cv::Mat::zeros(segmentation_mat.size(), CV_8UC3);
+
+	map<uint32_t, int> labels;
+	int labelcount = 0;
+
+	Mat hsv;
+	cv::cvtColor(original, hsv, CV_BGR2HSV);
+
+	//go through every pixel
+	for (int i = 0; i < segmentation_mat.rows; i++) {
+		for (int j = 0; j < segmentation_mat.cols; j++) {
+			cv::Vec3b& label = segmentation_mat.at<cv::Vec3b>(i, j);
+			const cv::Vec3b& colour = original.at<cv::Vec3b>(i, j);
+			uint32_t intLabel = label[2] * 1000000 + label[1] * 1000 + label[0];
+			int componentId = get_label(labels, intLabel);
+			if (componentId == -1) {
+				//the component is new
+				labels[intLabel] = labelcount;
+				componentId = labels[intLabel];
+				labelcount++;
+				//cout <<"--------------------- new component id: "<<labels[intLabel]<<" of colour: "<<intLabel<<endl;
+
+				component_id.at<uint16_t>(i, j) = (uint16_t) componentId;
+				//cout << (int)component_id.at<uint16_t>(i,j)<<" ";
+				Segment* segment = new Segment(hsv);
+				const cv::Point2i point(i, j);
+				segment->addPoint(point, colour);
+				segments.push_back(segment);
+				mapSegments[componentId] = segment;
+
+			} else {
+				//the component exists
+				//cout <<" component id: "<<componentId<<" of colour: "<<intLabel<<endl;
+				component_id.at<uint16_t>(i, j) = (uint16_t) componentId;
+				//cout << (int)component_id.at<uint16_t>(i,j)<<" ";
+				const cv::Point2i point(i, j);
+				mapSegments[componentId]->addPoint(point, colour);
+
+			}
+
+		}
+
+	}
+	cout <<">every pixel iterated."<<endl;
+	for (Segment* segment : segments){
+		//create random colour
+		segment->colour_this_segment(dst);
+	}
+
+	//for (Segment* segment : segments)
+	//	segment->computeFeatures();
 
 }
 

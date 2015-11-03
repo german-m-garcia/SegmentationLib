@@ -34,7 +34,7 @@ class Segment {
    pointFromDepth(uint16_t depthvalue,cv::Vec3b colour,cv::Point2i point2D,pcl::PointXYZRGB& point3D);
 
  public:
-  cv::Mat img_,contourMat,contourMat3C;
+  cv::Mat mat_original_colour_,contourMat,contourMat3C;
 
 
   Segment();
@@ -49,7 +49,7 @@ class Segment {
 
   void addMaxX(cv::Point2i& p);
 
-  void addPoint(cv::Point2i& p);
+  void addPoint(const cv::Point2i& p);
   void addPoint3D(cv::Point2i& p,cv::Vec3b colour,uint16_t depthvalue);
 
   cv::Point2i& getCentre(){

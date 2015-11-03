@@ -11,7 +11,7 @@ if(OpenCV_FOUND)
 	MESSAGE( STATUS ${OpenCV_INCLUDE_DIRS})
 endif()
 
-set(PCL_DIR "/home/gmartin/workspace/pcl/build/")
+set(PCL_DIR "~/workspace/pcl/build/")
 find_package(PCL REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 add_definitions(${PCL_DEFINITIONS})
@@ -48,9 +48,11 @@ endif()
 #${PROJECT_SOURCE_DIR}/segmentation.cpp
 #)
 
-add_library(segmentationlib
+add_library(SEGMENTATION
+   src/segmentation.cpp
    src/svm_wrapper.cpp
-   src/segmentation_lib.cpp
+   src/pcl_segmentation.cpp
+   src/base_segmentation.cpp
    src/segment.cpp
    
    #remove if using the latest PCL 
@@ -67,10 +69,10 @@ add_library(segmentationlib
 
 
 #Create an Executable for segment reader
-#add_executable(segment ${PROJECT_SOURCE_DIR}/segmenter.cpp)
-#target_link_libraries( segment SEGMENTATION  ${OpenCV_LIBS} )
+add_executable(segment ${PROJECT_SOURCE_DIR}/segmenter.cpp)
+target_link_libraries( segment SEGMENTATION  ${OpenCV_LIBS} ${PCL_LIBRARIES})
 
-#add_executable(ms_segment ${PROJECT_SOURCE_DIR}/ms_segmenter.cpp)
-#target_link_libraries( ms_segment SEGMENTATION  ${OpenCV_LIBS} )
+add_executable(ms_segment ${PROJECT_SOURCE_DIR}/ms_segmenter.cpp)
+target_link_libraries( ms_segment SEGMENTATION  ${OpenCV_LIBS} ${PCL_LIBRARIES})
 
 

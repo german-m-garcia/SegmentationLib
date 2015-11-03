@@ -5,29 +5,30 @@
  *      Author: martin
  */
 
-#include "Segmentation.h"
-
+#include "segmentation.h"
 
 using namespace std;
 using namespace cv;
 
 int main(int argc, char** argv) {
-	Mat img0,dst;
-		double threshold = 0.05;
-		Segmentation segmentation;
-		if(argc < 4){
-			cout <<"Usage: $> ./segmenter <input img> <output path> <scales> [<use gpu, default 0=false>]"<< endl;
-		}
+	Mat img0, dst;
 
-		img0 = cv::imread(argv[1], -1);
-		std::string outputPath(argv[2]);
-		double sp  = 15.;
-		double sr  = 15.;
-		double min_size = 15;
+	Segmentation segmentation;
+	if (argc < 3) {
+		cout
+				<< "Usage: $> ./segmenter <input img> <output path>"
+				<< endl;
+		return 0;
+	}
 
-
-		segmentation.mean_shift(img0,sp,sr,min_size, dst);
-		imwrite(outputPath,dst);
+	img0 = cv::imread(argv[1], -1);
+	std::string outputPath(argv[2]);
+	double sp = 15.;
+	double sr = 15.;
+	double min_size = 15;
+	segmentation.preprocess(false,img0,2);
+	segmentation.mean_shift(img0, sp, sr, min_size, dst);
+	imwrite(outputPath, dst);
 
 }
 

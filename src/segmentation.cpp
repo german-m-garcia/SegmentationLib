@@ -6,8 +6,9 @@
  */
 
 #include "segmentation.h"
-
-
+#include "base_segmentation.h"
+#include "segment.h"
+#include <string>
 
 using namespace std;
 using namespace cv;
@@ -17,13 +18,141 @@ Segmentation::Segmentation() {
 
 }
 
-Segmentation::~Segmentation() {
-	// TODO Auto-generated destructor stub
+Segmentation::Segmentation(cv::Mat& src, bool gpu, int scales) :
+		original_img_(src) {
+	image_pyramid_.reserve(scales+1);
+	bilateral_filtered_pyramid_.reserve(scales+1);
+	pyramid(gpu, src, scales);
+	segments_pyramid_.resize(scales+1);
 }
 
-void Segmentation::preprocess(bool gpu, cv::Mat& src, int scales) {
+Segmentation::~Segmentation() {
+	// TODO Auto-generated destructor stub
+	for (unsigned int i = 0; i < bilateral_filtered_pyramid_.size(); i++) {
+		image_pyramid_[i].release();
+		bilateral_filtered_pyramid_[i].release();
+		output_segments_pyramid_[i].release();
+		for(unsigned int j = 0; j < segments_pyramid_[i].size(); j++) {
+			delete segments_pyramid_[i][j];
+		}
+	}
+
+}
+
+void Segmentation::show_pyramids() {
+	for (unsigned int i = 0; i < bilateral_filtered_pyramid_.size(); i++) {
+		string name("bilateral pyramid - scale ");
+		string level = to_string(i);
+		imshow(name + level, bilateral_filtered_pyramid_[i]);
+	}
+	waitKey(0);
+}
+
+void Segmentation::bilateral_filter(bool gpu, cv::Mat& src_dst) {
 	cv::Mat tmp_f;
-	for (int i = 0; i < scales; i++)
+	if (gpu) {
+		//cv::bilateralFilter(src, tmp_f, 0, 25, 50);
+		cuda::GpuMat d_src(src_dst), d_src_a, d_tmp_f;
+		//cuda::cvtColor(d_src, d_src_a, CV_BGR2BGRA);
+
+		cuda::bilateralFilter(d_src, d_tmp_f, 0, 25, 50);
+		d_tmp_f.download(src_dst);
+
+	} else {
+		//cv::bilateralFilter(src_dst, tmp_f, 0, 25, 50);
+		cv::bilateralFilter(src_dst, tmp_f, 0, 15, 7);
+
+		src_dst = tmp_f;
+	}
+}
+
+/*
+ * computes a Gaussian pyramid representation for the input image
+ */
+void Segmentation::pyramid(bool gpu, cv::Mat& src, int scales) {
+
+	cv::pyrUp(src, src, cv::Size(src.cols * 2, src.rows * 2));
+	//add scale 0
+	//bilateral filtering
+	Mat img_scale_0 = src.clone();
+	image_pyramid_.push_back(src);
+	bilateral_filter(gpu, img_scale_0);
+	bilateral_filtered_pyramid_.push_back(img_scale_0);
+	Mat src_copy = src;
+
+	for (int i = 0; i < scales; i++) {
+		Mat img_scale_i;
+
+		cv::pyrDown(src_copy, img_scale_i,
+				cv::Size(src_copy.cols / 2, src_copy.rows / 2));
+
+		src_copy = img_scale_i.clone();
+		image_pyramid_.push_back(img_scale_i);
+		bilateral_filter(gpu, img_scale_i);
+		bilateral_filtered_pyramid_.push_back(img_scale_i);
+	}
+}
+
+void Segmentation::segment_pyramid(double thres) {
+	bool do_bilateral = true;
+
+	if (do_bilateral)
+		for (int i = 0; i < bilateral_filtered_pyramid_.size(); i++) {
+			Mat contours_mat, gradient, gray_gradient;
+
+			//edge_tests(bilateral_filtered_pyramid_[i], thres);
+
+			scharr_segment(bilateral_filtered_pyramid_[i], contours_mat,
+					gradient, gray_gradient, thres,i, true);
+			output_segments_pyramid_.push_back(contours_mat);
+			//thres -= 0.01;
+
+			if (DEBUG) {
+				string name("image pyramid - scale ");
+				string gradient_name("gradient pyramid - scale ");
+				string gray_gradient_name("gray gradient pyramid - scale ");
+				string contours("contours pyramid - scale ");
+				string level = to_string(i);
+				imshow(name + level, image_pyramid_[i]);
+				imshow(gradient_name + level, gradient);
+				imshow(gray_gradient_name + level, gray_gradient);
+				imshow(contours + level, contours_mat);
+				waitKey(0);
+			}
+
+		}
+	else
+		for (int i = 0; i < image_pyramid_.size(); i++) {
+			Mat contours_mat, gradient, gray_gradient;
+			scharr_segment(image_pyramid_[i], contours_mat, gradient,
+					gray_gradient, thres,i, true);
+			output_segments_pyramid_.push_back(contours_mat);
+
+			if (DEBUG) {
+				string name("image pyramid - scale ");
+				string gradient_name("gradient pyramid - scale ");
+				string gray_gradient_name("gray gradient pyramid - scale ");
+				string contours("contours pyramid - scale ");
+				string level = to_string(i);
+				imshow(name + level, image_pyramid_[i]);
+				imshow(gradient_name + level, gradient);
+				imshow(gray_gradient_name + level, gray_gradient);
+				imshow(contours + level, contours_mat);
+				waitKey(0);
+
+
+			}
+
+		}
+}
+
+/*
+ * it reduces the size of src by a number of scales
+ * given by scale
+ */
+void Segmentation::preprocess(bool gpu, cv::Mat& src, int scale) {
+	cv::Mat tmp_f;
+	for (int i = 0; i < scale; i++)
 		cv::pyrDown(src, src, cv::Size(src.cols / 2, src.rows / 2));
 
 	if (gpu) {
@@ -38,11 +167,12 @@ void Segmentation::preprocess(bool gpu, cv::Mat& src, int scales) {
 		cv::bilateralFilter(src, tmp_f, 0, 25, 50);
 		src = tmp_f;
 	}
-
 }
 
 void Segmentation::mean_shift(const cv::Mat& src, double sp, double sr,
 		double min_size, cv::Mat& dst) {
+
+	Mat segmentation_result;
 
 	cuda::GpuMat k_img(src), k_imga, k_dst, k_dsta;
 
@@ -52,12 +182,33 @@ void Segmentation::mean_shift(const cv::Mat& src, double sp, double sr,
 	//Mat filtered;
 	//k_dst.download(filtered);
 	//cout << "mean shift..." << endl;
-	meanShiftSegmentation(k_dsta, dst, sp, sr, min_size,
+	meanShiftSegmentation(k_dsta, segmentation_result, sp, sr, min_size,
 			TermCriteria(2, -1, 0.001));
-	cv::cvtColor(dst, dst, CV_BGRA2BGR);
+	cv::cvtColor(segmentation_result, segmentation_result, CV_BGRA2BGR);
 	//cout << "downloading from GPU..." << endl;
 
+	read_segments(src, segmentation_result, dst);
+
 }
+
+void Segmentation::save_colours(int scale, vector<Vec3b>& colours){
+
+	colours.resize(0);
+	for(Segment* seg: segments_pyramid_[scale]){
+		colours.push_back(seg->getRandomColour());
+	}
+}
+
+void Segmentation::reset_colours(int scale, vector<Vec3b>& colours){
+
+
+	int i=0;
+	for(Segment* seg: segments_pyramid_[scale]){
+		seg->re_colour(colours[i]);
+		i++;
+	}
+}
+
 
 /*
  * Finds the segments delimited by the gradient:
@@ -67,7 +218,7 @@ void Segmentation::mean_shift(const cv::Mat& src, double sp, double sr,
  * paint: the Mat with the segments
  */
 void Segmentation::segment_contours(const cv::Mat& grayGradient,
-		cv::Mat& original, cv::Mat& paint, bool rnd_colours) {
+		cv::Mat& original, cv::Mat& paint,int scale, bool rnd_colours) {
 	cv::Mat binary_copy;
 
 	if (rnd_colours)
@@ -83,16 +234,25 @@ void Segmentation::segment_contours(const cv::Mat& grayGradient,
 	vector<Vec4i> hierarchy_best;
 	vector<vector<Point> > contours;
 
-	cv::findContours(binary_copy, contours, RETR_LIST, CHAIN_APPROX_NONE);
+	cv::findContours(binary_copy, contours, hierarchy, RETR_CCOMP,
+			CHAIN_APPROX_NONE);
+	//cv::findContours(binary_copy, contours, RETR_CCOMP, CHAIN_APPROX_NONE);
 
-	cout << "contours.size()=" << contours.size() << endl;
+	//cout << "contours.size()=" << contours.size() << endl;
 
 	for (int idx = 0; idx < contours.size(); idx++) {
 
 		Mat mask = Mat::zeros(grayGradient.rows, grayGradient.cols, CV_8UC1);
 		Mat segment = Mat::zeros(grayGradient.rows, grayGradient.cols, CV_8UC3);
-		cv::drawContours(mask, contours, idx, Scalar(255), FILLED, 8,
-				hierarchy);
+
+		//if it has parents we skip it at first
+		if (hierarchy[idx][3] != -1) {
+			continue;
+		}
+
+		int segment_size = contourArea(contours[idx]);
+		if ( segment_size < MIN_SIZE_PER_LEVEL)
+			continue;
 
 		//figure out the avg colour of this segment
 
@@ -102,26 +262,57 @@ void Segmentation::segment_contours(const cv::Mat& grayGradient,
 		else
 			colour = mean(original, mask);
 
+		Mat segment_mat = Mat::zeros(grayGradient.rows, grayGradient.cols, CV_8UC3);
+		cv::drawContours(segment_mat, contours, idx, colour, FILLED, 8, hierarchy);
 		cv::drawContours(paint, contours, idx, colour, FILLED, 8, hierarchy);
-		cv::drawContours(paint, contours, idx, colour, 6, 8, hierarchy);
+		//cv::drawContours(paint, contours, idx, colour, 6, 8, hierarchy);
 		for (Point p : contours[idx]) {
-
 			paint.at<Vec3b>(p.y, p.x) = Vec3b(colour[0], colour[1], colour[2]);
-
+			segment_mat.at<Vec3b>(p.y, p.x) = Vec3b(colour[0], colour[1], colour[2]);
 		}
-		//cv::drawContours(segment, contours, idx, colour, CV_FILLED, 8, hierarchy);
-		//cv::dilate(segment,segment,Mat());
-		//cv::dilate(mask,mask,Mat());
-		//segment.copyTo(paint,mask);
+		Rect bounding_rect = boundingRect( contours[idx] );
+		Mat sub_mat_original = original(bounding_rect);
+		Mat sub_mat_segment = segment_mat(bounding_rect);
+		Mat binary_original_;// == Mat::zeros(original.rows,original.cols,CV_8UC1)
+		cvtColor(segment_mat, binary_original_, CV_BGR2GRAY);
 
-		//cv::drawContours(mask, contours, idx, colour, CV_FILLED, 8, hierarchy);
-		//cout <<"contour:"<<idx<<endl;
-		//imshow("mask", mask);
-		//waitKey(0);
+
+		Segment *seg = new Segment(sub_mat_original,sub_mat_segment,binary_original_,contours[idx],bounding_rect,segment_size,Vec3b(colour[0],colour[1],colour[2]));
+		segments_pyramid_[scale].push_back(seg);
 
 	}
-	//cv::imshow("contours", paint);
-	//cv::waitKey(0);
+//	imshow("without parents",paint);
+//	for (int idx = 0; idx < contours.size(); idx++) {
+//
+//		Mat mask = Mat::zeros(grayGradient.rows, grayGradient.cols, CV_8UC1);
+//		Mat segment = Mat::zeros(grayGradient.rows, grayGradient.cols, CV_8UC3);
+//
+//		//if it has parents we skip it at first
+//		if ( hierarchy[idx][3] != -1 ) {
+//			continue;
+//		}
+//
+//		if (contours[idx].size() < MIN_SIZE_PER_LEVEL)
+//			continue;
+//
+//		//figure out the avg colour of this segment
+//
+//		cv::Scalar colour, avg_colour;
+//		if (rnd_colours)
+//			colour = Scalar(rand() & 255, rand() & 255, rand() & 255);
+//		else
+//			colour = mean(original, mask);
+//
+//		cv::drawContours(paint, contours, idx, colour, FILLED, 8, hierarchy);
+//		//cv::drawContours(paint, contours, idx, colour, 6, 8, hierarchy);
+//		for (Point p : contours[idx]) {
+//			paint.at<Vec3b>(p.y, p.x) = Vec3b(colour[0], colour[1], colour[2]);
+//		}
+//
+//	}
+//	imshow("with parents",paint);
+	waitKey(0);
+
 }
 
 void Segmentation::nms(Mat& gradx, Mat& grady, Mat& gradient) {
@@ -141,7 +332,7 @@ void Segmentation::nms(Mat& gradx, Mat& grady, Mat& gradient) {
  * gradient_threshold: the threshold applied to the edge mat
  */
 void Segmentation::canny_segment(cv::Mat& src, cv::Mat& contours_mat,
-		cv::Mat& gradient, cv::Mat& grayGradient, double gradient_threshold) {
+		cv::Mat& gradient, cv::Mat& grayGradient, double gradient_threshold, int scale) {
 
 	//cv::imshow("Original Img", src);
 
@@ -159,31 +350,27 @@ void Segmentation::canny_segment(cv::Mat& src, cv::Mat& contours_mat,
 	/// Canny detector
 	cv::Canny(src, gradient, lowThreshold, lowThreshold * ratio, kernel_size);
 	imshow("canny", gradient);
+	waitKey(0);
 
-	Mat scharr_gradient, diff;
+//	Mat scharr_gradient, diff;
 	//cv::nms_Scharr(src, scharr_gradient, lowThreshold, lowThreshold * ratio,
 	//		kernel_size);
 
 	//cv::dilate(scharr_gradient,scharr_gradient,Mat());
 	//cv::erode(scharr_gradient,scharr_gradient,Mat());
 
-	scharr_gradient.convertTo(scharr_gradient, CV_64FC1);
+//	scharr_gradient.convertTo(scharr_gradient, CV_64FC1);
 	double min, max;
-	cv::minMaxLoc(scharr_gradient, &min, &max);
-
+	cv::minMaxLoc(gradient, &min, &max);
 	gradient -= min;
 	gradient *= 1.0 / (max - min);
-	imshow("scharr_gradient", scharr_gradient);
-	scharr_gradient = scharr_gradient < 1;
-	imshow("inverted scharr_gradient", scharr_gradient);
-	segment_contours(scharr_gradient, src, contours_mat, true);
+	gradient = gradient < gradient_threshold;
 
-	imshow("contours_mat", contours_mat);
-	waitKey(0);
+	segment_contours(gradient, src, contours_mat,scale, true);
 
 }
 
-void Segmentation::thin_contours(cv::Mat& grayGradient){
+void Segmentation::thin_contours(cv::Mat& grayGradient) {
 
 	Mat copy = grayGradient < 1.;
 
@@ -192,8 +379,153 @@ void Segmentation::thin_contours(cv::Mat& grayGradient){
 	thinning(copy, copy);
 	//imshow("gradient after thining", copy);
 	//waitKey(0);
-	copy.convertTo(grayGradient,CV_32FC1);
+	copy.convertTo(grayGradient, CV_32FC1);
 	grayGradient = grayGradient < 1.;
+
+}
+
+void Segmentation::expand_mat(Mat& src, Mat& dst) {
+
+	//the expanded mat is twice as big
+	dst = Mat::zeros(src.rows * 2 + 1, src.cols * 2 + 1, src.type());
+	cout << "dst.type()=" << dst.type() << " dst.size()" << dst.size() << endl;
+	for (int i = 0; i < src.rows; i++)
+		for (int j = 0; j < src.cols; j++) {
+			int map_row = (i + 1) * 2 - 1;
+			int map_col = (j + 1) * 2 - 1;
+			dst.at<Vec3d>(map_row, map_col) = src.at<Vec3d>(i, j);
+		}
+	double min, max;
+	cv::minMaxLoc(dst, &min, &max);
+	dst -= min;
+	dst *= 1.0 / (max - min);
+}
+
+void Segmentation::join_edges(Mat& expanded, int dx, int dy) {
+	if (dy == 1) {
+		for (int i = 2; i < expanded.rows - 2; i += 2)
+			for (int j = 2; j < expanded.cols - 2; j += 2) {
+
+				expanded.at<double>(i, j) = (expanded.at<double>(i, j - 1)
+						+ expanded.at<double>(i, j + 1)) / 2.;
+			}
+	} else if (dx == 1) {
+		for (int i = 2; i < expanded.rows - 2; i += 2)
+			for (int j = 2; j < expanded.cols - 2; j += 2) {
+
+				expanded.at<double>(i, j) = (expanded.at<double>(i - 1, j)
+						+ expanded.at<double>(i + 1, j)) / 2.;
+			}
+	}
+
+}
+
+void Segmentation::expanded_scharr(Mat& float_src, Mat& expanded,
+		Mat &expanded_gradient, int dx, int dy) {
+
+	Mat tmp_dst;
+	Mat gradx, grady;
+
+	// finds horizontal edges ->cols axis
+	if (dx > 0) {
+
+		double kernel_x_array[15] = { -0.09375, 0., 0.09375, 0., 0., 0.,
+				-0.3125, 0., 0.3125, 0., 0., 0., -0.09375, 0., 0.09375 };
+		Mat kernel_x_mat = cv::Mat(5, 3, CV_64F, kernel_x_array);
+		Mat kernel_x_mat_3_channels;
+		vector<Mat> kernel_x_vector =
+				{ kernel_x_mat, kernel_x_mat, kernel_x_mat };
+		merge(kernel_x_vector, kernel_x_mat_3_channels);
+
+		cout << kernel_x_mat_3_channels << endl;
+		expand_mat(float_src, expanded);
+		cout << "expanded.type()=" << expanded.type() << " expanded.size()"
+				<< expanded.size() << endl;
+		imshow("expanded", expanded);
+
+		expanded_gradient = Mat::zeros(expanded.rows, expanded.cols,
+		CV_64F);
+		for (int i = 3; i < expanded.rows - 5; i += 2)
+			for (int j = 2; j < expanded.cols - 3; j += 2) {
+
+				// the rectangle is vertical: width = 3, height = 5
+				Rect sub_rect(j - 1, i - 2, 3, 5);
+
+				double product = expanded(sub_rect).dot(
+						kernel_x_mat_3_channels);
+				expanded_gradient.at<double>(i, j) = product;
+			}
+		//join_edges(expanded_gradient,1,0);
+
+		// finds vertical edges ->rows axis
+	} else if (dy > 0) {
+
+		double kernel_y_array[15] = { -0.09375, 0., -0.3125, 0., -0.09375, 0.,
+				0., 0., 0., 0., 0.09375, 0., 0.3125, 0., 0.09375, };
+		Mat kernel_y_mat = cv::Mat(3, 5, CV_64F, kernel_y_array);
+		Mat kernel_y_mat_3_channels;
+		vector<Mat> kernel_x_vector =
+				{ kernel_y_mat, kernel_y_mat, kernel_y_mat };
+		merge(kernel_x_vector, kernel_y_mat_3_channels);
+
+		cout << kernel_y_mat_3_channels << endl;
+		expand_mat(float_src, expanded);
+		cout << "expanded.type()=" << expanded.type() << " expanded.size()"
+				<< expanded.size() << endl;
+		imshow("expanded", expanded);
+
+		expanded_gradient = Mat::zeros(expanded.rows, expanded.cols,
+		CV_64F);
+		for (int i = 2; i < expanded.rows - 5; i += 2)
+			for (int j = 3; j < expanded.cols - 3; j += 2) {
+
+				// the rectangle is horizontal: width = 5, height = 3
+				Rect sub_rect(j - 2, i - 1, 5, 3);
+
+				double product = expanded(sub_rect).dot(
+						kernel_y_mat_3_channels);
+				expanded_gradient.at<double>(i, j) = product;
+			}
+		//join_edges(expanded_gradient,0,1);
+
+	}
+}
+
+void Segmentation::edge_tests(Mat& src, double gradient_threshold) {
+
+	Mat expanded, tmp_dst;
+	Mat gradx, grady;
+	Mat gradient;
+	Mat float_src;
+	src.convertTo(float_src, CV_64FC3);
+
+	expanded_scharr(float_src, expanded, gradx, 1, 0);
+	expanded_scharr(float_src, expanded, grady, 0, 1);
+
+	cv::magnitude(gradx, grady, gradient);
+	double min, max;
+	cv::minMaxLoc(gradient, &min, &max);
+	gradient -= min;
+	gradient *= 1.0 / (max - min);
+	cv::minMaxLoc(gradient, &min, &max);
+	cout << " min and max in gradient = " << min << " " << max << endl;
+	for (int i = 0; i < gradient.rows; i++)
+		for (int j = 0; j < gradient.cols; j++) {
+
+			if (gradient.at<double>(i, j) > gradient_threshold)
+				expanded.at<Vec3d>(i, j) = Vec3d(0., 0., 255.);
+		}
+
+	Mat grayGradient = gradient < gradient_threshold;
+
+	Mat contours_mat;
+	//segment_contours(grayGradient, src, contours_mat, true);
+
+	imshow("expanded_gradient", gradient);
+	imshow("expanded", expanded);
+	imshow("grayGradient", grayGradient);
+
+	waitKey(0);
 
 }
 
@@ -206,7 +538,7 @@ void Segmentation::thin_contours(cv::Mat& grayGradient){
  */
 void Segmentation::scharr_segment(cv::Mat& src, cv::Mat& contours_mat,
 		cv::Mat& gradient, cv::Mat& grayGradient, double gradient_threshold,
-		bool rnd_colours) {
+		int scale,	bool rnd_colours) {
 
 	//cv::imshow("Original Img", src);
 
@@ -214,10 +546,14 @@ void Segmentation::scharr_segment(cv::Mat& src, cv::Mat& contours_mat,
 	cv::Rect rect_edges(src.cols, 0, src.cols, src.rows);
 
 	//cv::globalPb(img0, gPb, gPb_thin, gPb_ori);
-	cv::Mat gradx, grady;
-	int scale = 1;
-	cv::Scharr(src, gradx, CV_64F, 1, 0, scale);
-	cv::Scharr(src, grady, CV_64F, 0, 1, scale);
+	cv::Mat gradx, grady, abs_grad_x, abs_grad_y, abs_grad;
+
+	int ksize = 5;
+
+	cv::Scharr(src, gradx, CV_64F, 1, 0, 1);
+	cv::Scharr(src, grady, CV_64F, 0, 1, 1);
+
+	//edge_tests(src, gradient_threshold);
 
 	cv::magnitude(gradx, grady, gradient);
 	double min, max;
@@ -226,7 +562,7 @@ void Segmentation::scharr_segment(cv::Mat& src, cv::Mat& contours_mat,
 	gradient -= min;
 	gradient *= 1.0 / (max - min);
 	cv::minMaxLoc(gradient, &min, &max);
-	cout << "min max " << min << " " << max << endl;
+	//cout << "min max " << min << " " << max << endl;
 
 	//segmentation
 	std::vector<cv::Mat> gradients;
@@ -241,13 +577,12 @@ void Segmentation::scharr_segment(cv::Mat& src, cv::Mat& contours_mat,
 //	cv::dilate(grayGradient,grayGradient,Mat());
 //	cv::dilate(grayGradient,grayGradient,Mat());
 
-
 //	imshow("grayGradient before",grayGradient);
 //	thin_contours(grayGradient);
 //	imshow("grayGradient after",grayGradient);
 //	waitKey(0);
 	// grayGradient CV_64F [0..1]
-	segment_contours(grayGradient, src, contours_mat, rnd_colours);
+	segment_contours(grayGradient, src, contours_mat,scale, rnd_colours);
 }
 
 /**
@@ -357,13 +692,18 @@ void Segmentation::thinning(const cv::Mat& src, cv::Mat& dst) {
 	cv::Mat prev = cv::Mat::zeros(dst.size(), CV_8UC1);
 	cv::Mat diff;
 
-	do {
+//	do {
+//		thinningIteration(dst, 0);
+//		thinningIteration(dst, 1);
+//		cv::absdiff(dst, prev, diff);
+//		dst.copyTo(prev);
+//	} while (cv::countNonZero(diff) > 0);
+//
+	for (int iter = 0; iter < 1; iter++) {
 		thinningIteration(dst, 0);
 		thinningIteration(dst, 1);
-		cv::absdiff(dst, prev, diff);
-		dst.copyTo(prev);
-	} //while (cv::countNonZero(diff) > 0);
-	while(false);
+
+	}
 
 	dst *= 255;
 }
