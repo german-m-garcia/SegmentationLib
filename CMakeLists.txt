@@ -16,16 +16,18 @@ find_package(PCL REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
+find_package(Boost REQUIRED)
 
 add_definitions(-DHAVE_STRING_H)
 
 
-SET(CMAKE_CXX_FLAGS "-O4 -std=c++0x -g -fpic")
+SET(CMAKE_CXX_FLAGS "-O4 -std=c++11 -g")
+#SET(CMAKE_CXX_FLAGS "-O4 -std=c++0x -g -fpic")
 set(CMAKE_BINARY_DIR ${CMAKE_SOURCE_DIR}/build)
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR})
 set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR})
-set(PROJECT_SOURCE_DIR ${CMAKE_SOURCE_DIR}/src)
-set(PROJECT_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/include)
+set(PROJECT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}//src)
+set(PROJECT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 
 #Include Required Directories
@@ -48,31 +50,28 @@ endif()
 #${PROJECT_SOURCE_DIR}/segmentation.cpp
 #)
 
-add_library(SEGMENTATION
-   src/segmentation.cpp
-   src/svm_wrapper.cpp
-   src/pcl_segmentation.cpp
-   src/base_segmentation.cpp
-   src/segment.cpp
-   
+add_library(SEGMENTATION SHARED
+   ${CMAKE_CURRENT_SOURCE_DIR}/src/segmentation.cpp
+   ${CMAKE_CURRENT_SOURCE_DIR}/src/svm_wrapper.cpp
+   ${CMAKE_CURRENT_SOURCE_DIR}/src/pcl_segmentation.cpp
+   ${CMAKE_CURRENT_SOURCE_DIR}/src/base_segmentation.cpp
+   ${CMAKE_CURRENT_SOURCE_DIR}/src/segment.cpp
+   #${CMAKE_CURRENT_SOURCE_DIR}/src/z_adaptive_normals.cpp
+   ${CMAKE_CURRENT_SOURCE_DIR}/src/surface_cluster.cpp
+   ${CMAKE_CURRENT_SOURCE_DIR}/src/epbase.cpp
+   ${CMAKE_CURRENT_SOURCE_DIR}/src/cluster_normals_to_planes.cpp      
    #remove if using the latest PCL 
-   #src/lccp_segmentation.cpp
+   ${CMAKE_CURRENT_SOURCE_DIR}/src/lccp_segmentation.cpp
  )
  
- add_library(surfaces
-   src/surface_cluster.cpp
-   src/epbase.cpp
-   src/cluster_normals_to_planes.cpp
-   src/z_adaptive_normals.cpp
-   )
-
+ target_link_libraries(SEGMENTATION ${Boost_LIBRARIES} ${OpenCV_LIBS} ${PCL_LIBRARIES} )
 
 
 #Create an Executable for segment reader
 add_executable(segment ${PROJECT_SOURCE_DIR}/segmenter.cpp)
-target_link_libraries( segment SEGMENTATION  ${OpenCV_LIBS} ${PCL_LIBRARIES})
+target_link_libraries( segment   SEGMENTATION )
 
 add_executable(ms_segment ${PROJECT_SOURCE_DIR}/ms_segmenter.cpp)
-target_link_libraries( ms_segment SEGMENTATION  ${OpenCV_LIBS} ${PCL_LIBRARIES})
+target_link_libraries( ms_segment   SEGMENTATION)
 
 

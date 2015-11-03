@@ -50,6 +50,7 @@ void Segmentation::show_pyramids() {
 
 void Segmentation::bilateral_filter(bool gpu, cv::Mat& src_dst) {
 	cv::Mat tmp_f;
+#ifdef CUDA_ENABLED
 	if (gpu) {
 		//cv::bilateralFilter(src, tmp_f, 0, 25, 50);
 		cuda::GpuMat d_src(src_dst), d_src_a, d_tmp_f;
@@ -64,6 +65,10 @@ void Segmentation::bilateral_filter(bool gpu, cv::Mat& src_dst) {
 
 		src_dst = tmp_f;
 	}
+#else
+	cv::bilateralFilter(src_dst, tmp_f, 0, 15, 7);
+	src_dst = tmp_f;
+#endif
 }
 
 /*
@@ -154,7 +159,7 @@ void Segmentation::preprocess(bool gpu, cv::Mat& src, int scale) {
 	cv::Mat tmp_f;
 	for (int i = 0; i < scale; i++)
 		cv::pyrDown(src, src, cv::Size(src.cols / 2, src.rows / 2));
-
+#ifdef CUDA_ENABLED
 	if (gpu) {
 		//cv::bilateralFilter(src, tmp_f, 0, 25, 50);
 		cuda::GpuMat d_src(src), d_src_a, d_tmp_f;
@@ -167,13 +172,17 @@ void Segmentation::preprocess(bool gpu, cv::Mat& src, int scale) {
 		cv::bilateralFilter(src, tmp_f, 0, 25, 50);
 		src = tmp_f;
 	}
+#else
+	cv::bilateralFilter(src, tmp_f, 0, 25, 50);
+	src = tmp_f;
+#endif
 }
 
 void Segmentation::mean_shift(const cv::Mat& src, double sp, double sr,
 		double min_size, cv::Mat& dst) {
 
 	Mat segmentation_result;
-
+#ifdef CUDA_ENABLED
 	cuda::GpuMat k_img(src), k_imga, k_dst, k_dsta;
 
 	cuda::cvtColor(k_img, k_imga, CV_BGR2BGRA);
@@ -187,6 +196,7 @@ void Segmentation::mean_shift(const cv::Mat& src, double sp, double sr,
 	cv::cvtColor(segmentation_result, segmentation_result, CV_BGRA2BGR);
 	//cout << "downloading from GPU..." << endl;
 
+#endif
 	read_segments(src, segmentation_result, dst);
 
 }

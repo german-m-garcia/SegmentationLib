@@ -36,11 +36,14 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
-#include <boost/filesystem/fstream.hpp>
-#include <boost/filesystem.hpp>
+//#define BOOST_NO_CXX11_SCOPED_ENUMS
+//#include <boost/filesystem/fstream.hpp>
+//#include <boost/filesystem.hpp>
+//#undef BOOST_NO_CXX11_SCOPED_ENUMS
 
 #include "surface_model.hpp"
-#include "z_adaptive_normals.h"
+//#include "z_adaptive_normals.h"
+#include "ZAdaptiveNormals.hh"
 #include "cluster_normals_to_planes.h"
 #include "surface_cluster.h"
 
@@ -49,6 +52,7 @@
 
 using namespace std;
 using namespace cv;
+using namespace surface;
 
 //#define DEBUG 0
 
@@ -243,9 +247,9 @@ void ClusterSurfaces::calculateNormals() {
   normals.reset(new pcl::PointCloud<pcl::Normal>);
   //toc(text);
 text ="nor.compute";
-  surface::ZAdaptiveNormals<pcl::PointXYZRGB>::Parameter param;
+  ZAdaptiveNormals<pcl::PointXYZRGB>::Parameter param;
   param.adaptive = true;
-  surface::ZAdaptiveNormals<pcl::PointXYZRGB> nor(param);
+  ZAdaptiveNormals<pcl::PointXYZRGB> nor(param);
   nor.setInputCloud(pcl_cloud);
   // tic();
   nor.compute();
@@ -254,13 +258,13 @@ text ="nor.compute";
 }
 
 void ClusterSurfaces::calculatePatches() {
-  surface::ClusterNormalsToPlanes::Parameter param;
+  ClusterNormalsToPlanes::Parameter param;
   param.adaptive = true;         // use adaptive thresholds
   param.epsilon_c = 0.58;         //0.62;//
   param.omega_c = -0.002;
 
-  clusterNormals = surface::ClusterNormalsToPlanes::Ptr(
-      new surface::ClusterNormalsToPlanes(param));
+  clusterNormals = ClusterNormalsToPlanes::Ptr(
+      new ClusterNormalsToPlanes(param));
   // adaptive clustering
   clusterNormals->setInputCloud(pcl_cloud);
   clusterNormals->setNormals(normals);
