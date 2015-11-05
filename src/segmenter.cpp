@@ -6,7 +6,7 @@
  */
 
 #include "segmentation.h"
-
+#include "utils.h"
 
 using namespace std;
 using namespace cv;
@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
 	original_img = cv::imread(argv[1], -1);
 	std::string outputPath(argv[2]);
 	int scales = atoi(argv[3]);
-	int starting_scale = 1;
+	int starting_scale = 0;
 	int gpu = 0;
 	if(argc == 5){
 		gpu = atoi(argv[4]);
@@ -33,8 +33,13 @@ int main(int argc, char** argv) {
 	}
 
 	bool use_gpu = gpu > 0 ? true: false;
+	Utils utils;
+	utils.tick();
 	Segmentation segmentation(original_img,gpu,scales,starting_scale);
 	segmentation.segment_pyramid(threshold);
+
+	string text("Scharr segmentation: ");
+	utils.tock(text);
 
 	//show some segments
 
@@ -50,7 +55,7 @@ int main(int argc, char** argv) {
 
 
 	Mat outMat;
-	int show_n_last_scales = 2;
+	int show_n_last_scales = 1;
 	segmentation.print_results(outMat,show_n_last_scales);
 	imwrite(outputPath,outMat);
 

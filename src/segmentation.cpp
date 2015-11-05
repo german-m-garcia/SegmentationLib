@@ -19,11 +19,11 @@ Segmentation::Segmentation() {
 }
 
 Segmentation::Segmentation(cv::Mat& src, bool gpu, int scales, int starting_scale) :
-		original_img_(src),absolute_scales_(scales),actual_scales_(scales-starting_scale),starting_scale_(starting_scale) {
-	assert(scales>0&&starting_scale>0 && starting_scale<scales);
+		original_img_(src),absolute_scales_(scales+1),actual_scales_(scales+1-starting_scale),starting_scale_(starting_scale) {
+	assert(scales>0&&starting_scale>=0 && starting_scale<scales);
 
-	image_pyramid_.reserve(scales);
-	bilateral_filtered_pyramid_.reserve(scales);
+	image_pyramid_.reserve(absolute_scales_);
+	bilateral_filtered_pyramid_.reserve(absolute_scales_);
 	pyramid(gpu, src, absolute_scales_,starting_scale_);
 	segments_pyramid_.resize(actual_scales_);
 	output_segments_pyramid_.resize(actual_scales_);
@@ -31,11 +31,11 @@ Segmentation::Segmentation(cv::Mat& src, bool gpu, int scales, int starting_scal
 
 Segmentation::~Segmentation() {
 	// TODO Auto-generated destructor stub
-	for (unsigned int i = 0; i < bilateral_filtered_pyramid_.size(); i++) {
+	for (unsigned int i = 0; i < actual_scales_; i++) {
 		image_pyramid_[i].release();
 		bilateral_filtered_pyramid_[i].release();
 		//output_segments_pyramid_[i].release();
-		for (unsigned int j = 0; j < segments_pyramid_[i].size(); j++) {
+		for (unsigned int j = 0; j < actual_scales_; j++) {
 			delete segments_pyramid_[i][j];
 		}
 	}
@@ -115,7 +115,7 @@ void Segmentation::segment_pyramid(double thres) {
 	bool do_bilateral = true;
 
 	if (do_bilateral)
-		for (int i = 0; i < bilateral_filtered_pyramid_.size(); i++) {
+		for (int i = 0; i < actual_scales_; i++) {
 			Mat contours_mat, gradient, gray_gradient;
 
 			//edge_tests(bilateral_filtered_pyramid_[i], thres);
@@ -141,7 +141,7 @@ void Segmentation::segment_pyramid(double thres) {
 
 		}
 	else
-		for (int i = 0; i < image_pyramid_.size(); i++) {
+		for (int i = 0; i < actual_scales_; i++) {
 			Mat contours_mat, gradient, gray_gradient;
 			scharr_segment(image_pyramid_[i], contours_mat, gradient,
 					gray_gradient, thres, i, true);
@@ -242,6 +242,7 @@ void Segmentation::segment_contours(const cv::Mat& grayGradient,
 		cv::Mat& original, cv::Mat& paint, int scale, bool rnd_colours) {
 	cv::Mat binary_copy;
 
+	cout << "Segmentation::segment_contours scale="<<scale<<endl;
 	if (rnd_colours)
 		paint = Mat::zeros(grayGradient.rows, grayGradient.cols, CV_8UC3);
 	else
@@ -314,6 +315,7 @@ void Segmentation::segment_contours(const cv::Mat& grayGradient,
 		Segment *seg = new Segment(sub_mat_original, sub_mat_segment,
 				binary_original_, contours[idx], bounding_rect, segment_size,
 				Vec3b(colour[0], colour[1], colour[2]));
+		//cout <<"segments_pyramid_.size()="<<segments_pyramid_.size()<<endl;
 		segments_pyramid_[scale].push_back(seg);
 
 	}
@@ -425,7 +427,7 @@ void Segmentation::expand_mat(Mat& src, Mat& dst) {
 
 	//the expanded mat is twice as big
 	dst = Mat::zeros(src.rows * 2 + 1, src.cols * 2 + 1, src.type());
-	cout << "dst.type()=" << dst.type() << " dst.size()" << dst.size() << endl;
+	//cout << "dst.type()=" << dst.type() << " dst.size()" << dst.size() << endl;
 	for (int i = 0; i < src.rows; i++)
 		for (int j = 0; j < src.cols; j++) {
 			int map_row = (i + 1) * 2 - 1;
@@ -810,8 +812,6 @@ void Segmentation::intensity_histogram(Mat& src, Mat& dst) {
 }
 
 void Segmentation::print_results(Mat& dst, int last_n_scales){
-
-
 
 	dst  = Mat::zeros(original_img_.rows, original_img_.cols * (last_n_scales+1), CV_8UC3);
 	cout << "> showing # of scales =" <<last_n_scales << endl;
