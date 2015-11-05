@@ -35,7 +35,7 @@ public:
 	Segmentation(cv::Mat& src, bool gpu, int scales, int starting_scale);
 	virtual ~Segmentation();
 
-	void pyramid(bool gpu,cv::Mat& src,int scales);
+	void pyramid(bool gpu,cv::Mat& src,int scales, int starting_scale);
 
 	void preprocess(bool gpu,cv::Mat& src,int scale);
 
@@ -74,6 +74,8 @@ public:
 		return segments_pyramid_;
 	}
 
+	void print_results(Mat& dst, int last_n_scales);
+
 private:
 	void segment_contours(const cv::Mat& src, cv::Mat& draw,cv::Mat& paint,int scale, bool rnd_colours);
 
@@ -99,6 +101,8 @@ private:
 
 	vector< vector <Segment*> > segments_pyramid_;
 
+	int absolute_scales_;
+	int actual_scales_;
 	int starting_scale_;
 
 

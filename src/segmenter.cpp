@@ -22,7 +22,7 @@ int main(int argc, char** argv) {
 	original_img = cv::imread(argv[1], -1);
 	std::string outputPath(argv[2]);
 	int scales = atoi(argv[3]);
-	int starting_scale = 2;
+	int starting_scale = 1;
 	int gpu = 0;
 	if(argc == 5){
 		gpu = atoi(argv[4]);
@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
 	segmentation.segment_pyramid(threshold);
 
 	//show some segments
-	const vector<Segment*>& segs = segmentation.getSegmentsPyramid()[starting_scale];
+
 //	namedWindow("segment",WINDOW_NORMAL );
 //	for(Segment* seg: segs){
 //		Mat display = Mat::zeros(original_img.rows,original_img.cols,CV_8UC3);
@@ -49,35 +49,9 @@ int main(int argc, char** argv) {
 	//return 0;
 
 
-	vector<Mat> outputPyr = segmentation.getOutputSegmentsPyramid();
-
-	cv::Mat outMat(original_img.rows, original_img.cols * 4, CV_8UC3);
-	cout << "> scales =" <<scales << endl;
-	cv::Rect rect_orig(0, 0, original_img.cols, original_img.rows);
-	cv::Rect rect_level_0(original_img.cols, 0, original_img.cols, original_img.rows);
-	cv::Rect rect_level_1(original_img.cols*2, 0, original_img.cols, original_img.rows);
-	cv::Rect rect_level_2(original_img.cols*3, 0, original_img.cols, original_img.rows);
-
-
-	//img0.convertTo(img0, CV_32FC3);
-
-	segmentation.getBilateralFilteredPyramid()[0].copyTo(outMat(rect_orig));
-
-
-//	grayGradient *= 255.;
-//	//grayGradient.convertTo(img0, CV_8UC3);
-//    cvtColor(grayGradient,grayGradient,COLOR_GRAY2BGR);
-//	cout << "> grayGradient.type()=" <<grayGradient.type()<<" grayGradient.size()="<<grayGradient.size() << endl;
-//
-//	gradient*= 255.;
-	Mat tmp_out_0,tmp_out_1,tmp_out_2;
-
-	resize(outputPyr[starting_scale],tmp_out_0,original_img.size());
-	resize(outputPyr[starting_scale],tmp_out_1,original_img.size());
-	resize(outputPyr[starting_scale],tmp_out_2,original_img.size());
-	tmp_out_0.copyTo(outMat(rect_level_0));
-	tmp_out_1.copyTo(outMat(rect_level_1));
-	tmp_out_2.copyTo(outMat(rect_level_2));
+	Mat outMat;
+	int show_n_last_scales = 2;
+	segmentation.print_results(outMat,show_n_last_scales);
 	imwrite(outputPath,outMat);
 
 //	imshow("outMat",outMat);

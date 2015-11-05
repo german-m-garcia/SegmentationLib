@@ -19,12 +19,14 @@ Segmentation::Segmentation() {
 }
 
 Segmentation::Segmentation(cv::Mat& src, bool gpu, int scales, int starting_scale) :
-		original_img_(src),starting_scale_(starting_scale) {
-	image_pyramid_.reserve(scales + 1);
-	bilateral_filtered_pyramid_.reserve(scales + 1);
-	pyramid(gpu, src, scales);
-	segments_pyramid_.resize(scales + 1);
-	output_segments_pyramid_.resize(scales + 1);
+		original_img_(src),absolute_scales_(scales),actual_scales_(scales-starting_scale),starting_scale_(starting_scale) {
+	assert(scales>0&&starting_scale>0 && starting_scale<scales);
+
+	image_pyramid_.reserve(scales);
+	bilateral_filtered_pyramid_.reserve(scales);
+	pyramid(gpu, src, absolute_scales_,starting_scale_);
+	segments_pyramid_.resize(actual_scales_);
+	output_segments_pyramid_.resize(actual_scales_);
 }
 
 Segmentation::~Segmentation() {
@@ -75,18 +77,28 @@ void Segmentation::bilateral_filter(bool gpu, cv::Mat& src_dst) {
 /*
  * computes a Gaussian pyramid representation for the input image
  */
-void Segmentation::pyramid(bool gpu, cv::Mat& src, int scales) {
+void Segmentation::pyramid(bool gpu, cv::Mat& src, int scales, int starting_scale) {
 
-	cv::pyrUp(src, src, cv::Size(src.cols * 2, src.rows * 2));
-	//add scale 0
-	//bilateral filtering
-	Mat img_scale_0 = src.clone();
-	image_pyramid_.push_back(src);
-	bilateral_filter(gpu, img_scale_0);
-	bilateral_filtered_pyramid_.push_back(img_scale_0);
+	// if starting_scale = 0 we start the pyramid by upsampling the original image
+	if(starting_scale==0){
+		cv::pyrUp(src, src, cv::Size(src.cols * 2, src.rows * 2));
+		//add scale 0
+		//bilateral filtering
+		Mat img_scale_0 = src.clone();
+		image_pyramid_.push_back(src);
+		bilateral_filter(gpu, img_scale_0);
+		bilateral_filtered_pyramid_.push_back(img_scale_0);
+	}
 	Mat src_copy = src;
 
-	for (int i = 0; i < scales; i++) {
+	// if starting_scale = 1 then we start the pyramid with the original image
+	// otherwise, we skip scales until we reach the starting_scale
+	for(int i=1;i<starting_scale;i++){
+		cv::pyrDown(src_copy, src_copy,
+						cv::Size(src_copy.cols / 2, src_copy.rows / 2));
+	}
+
+	for (int i = starting_scale; i < scales; i++) {
 		Mat img_scale_i;
 
 		cv::pyrDown(src_copy, img_scale_i,
@@ -103,7 +115,7 @@ void Segmentation::segment_pyramid(double thres) {
 	bool do_bilateral = true;
 
 	if (do_bilateral)
-		for (int i = starting_scale_; i < bilateral_filtered_pyramid_.size(); i++) {
+		for (int i = 0; i < bilateral_filtered_pyramid_.size(); i++) {
 			Mat contours_mat, gradient, gray_gradient;
 
 			//edge_tests(bilateral_filtered_pyramid_[i], thres);
@@ -129,7 +141,7 @@ void Segmentation::segment_pyramid(double thres) {
 
 		}
 	else
-		for (int i = starting_scale_; i < image_pyramid_.size(); i++) {
+		for (int i = 0; i < image_pyramid_.size(); i++) {
 			Mat contours_mat, gradient, gray_gradient;
 			scharr_segment(image_pyramid_[i], contours_mat, gradient,
 					gray_gradient, thres, i, true);
@@ -797,3 +809,38 @@ void Segmentation::intensity_histogram(Mat& src, Mat& dst) {
 
 }
 
+void Segmentation::print_results(Mat& dst, int last_n_scales){
+
+
+
+	dst  = Mat::zeros(original_img_.rows, original_img_.cols * (last_n_scales+1), CV_8UC3);
+	cout << "> showing # of scales =" <<last_n_scales << endl;
+	vector<Rect> rects;
+	Rect rect_orig(0, 0, original_img_.cols, original_img_.rows);
+	for(int i=0;i<last_n_scales;i++){
+		Rect rect_level_i(original_img_.cols*(i+1), 0, original_img_.cols, original_img_.rows);
+		rects.push_back(rect_level_i);
+	}
+
+
+//	Rect rect_level_0(original_img.cols, 0, original_img.cols, original_img.rows);
+//	Rect rect_level_1(original_img.cols*2, 0, original_img.cols, original_img.rows);
+//	Rect rect_level_2(original_img.cols*3, 0, original_img.cols, original_img.rows);
+
+
+	//img0.convertTo(img0, CV_32FC3);
+	original_img_.copyTo(dst(rect_orig));
+
+//	grayGradient *= 255.;
+//	//grayGradient.convertTo(img0, CV_8UC3);
+//    cvtColor(grayGradient,grayGradient,COLOR_GRAY2BGR);
+//	cout << "> grayGradient.type()=" <<grayGradient.type()<<" grayGradient.size()="<<grayGradient.size() << endl;
+//
+//	gradient*= 255.;
+
+	for(int i=0;i<last_n_scales;i++){
+		Mat tmp_out;
+		resize(output_segments_pyramid_[i],tmp_out,original_img_.size());
+		tmp_out.copyTo(dst(rects[i]));
+	}
+}
