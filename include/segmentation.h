@@ -25,14 +25,14 @@
 
 
 #define DEBUG false
-#define MIN_SIZE_PER_LEVEL 29
+#define MIN_SIZE_PER_LEVEL 5//29
 
 
 
 class Segmentation : public BaseSegmentation {
 public:
 	Segmentation();
-	Segmentation(cv::Mat& src, bool gpu, int scales);
+	Segmentation(cv::Mat& src, bool gpu, int scales, int starting_scale);
 	virtual ~Segmentation();
 
 	void pyramid(bool gpu,cv::Mat& src,int scales);
@@ -98,6 +98,8 @@ private:
 	vector<cv::Mat> scharr_pyramid_, bilateral_scharr_pyramid_;
 
 	vector< vector <Segment*> > segments_pyramid_;
+
+	int starting_scale_;
 
 
 };

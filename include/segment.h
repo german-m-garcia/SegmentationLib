@@ -103,6 +103,10 @@ public:
 
 	bool part_of(Segment* other_segment);
 
+	const Point2i& getCenter() const {
+		return center_;
+	}
+
 	Mat visualFeatures;
 	static const int NHISTOGRAMBINS = 128; //256
 	static const int NUMBER_VISUAL_FEATS=NHISTOGRAMBINS*3;
@@ -154,7 +158,7 @@ private:
 	vector<double> eigen_val;
 	vector<double> orientations_;
 	vector<double> modules_;
-	Point center_;
+	Point2i center_;
 
 
 
