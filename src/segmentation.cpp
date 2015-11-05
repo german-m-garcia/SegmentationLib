@@ -840,7 +840,7 @@ void Segmentation::print_results(Mat& dst, int last_n_scales){
 
 	for(int i=0;i<last_n_scales;i++){
 		Mat tmp_out;
-		resize(output_segments_pyramid_[i],tmp_out,original_img_.size());
-		tmp_out.copyTo(dst(rects[i]));
+		resize(output_segments_pyramid_[output_segments_pyramid_.size()-1-i],tmp_out,original_img_.size());
+		tmp_out.copyTo(dst(rects[last_n_scales-1-i]));
 	}
 }
