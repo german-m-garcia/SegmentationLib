@@ -15,7 +15,7 @@ find_package(PCL REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
-find_package(Boost REQUIRED)
+find_package(Boost REQUIRED program_options)
 
 add_definitions(-DHAVE_STRING_H)
 
@@ -59,7 +59,8 @@ add_library(SEGMENTATION SHARED
    #${CMAKE_CURRENT_SOURCE_DIR}/src/z_adaptive_normals.cpp
    ${CMAKE_CURRENT_SOURCE_DIR}/src/surface_cluster.cpp
    ${CMAKE_CURRENT_SOURCE_DIR}/src/epbase.cpp
-   ${CMAKE_CURRENT_SOURCE_DIR}/src/cluster_normals_to_planes.cpp      
+   ${CMAKE_CURRENT_SOURCE_DIR}/src/cluster_normals_to_planes.cpp    
+   ${CMAKE_CURRENT_SOURCE_DIR}/src/utils.cpp  
    #remove if using the latest PCL 
    #${CMAKE_CURRENT_SOURCE_DIR}/src/lccp_segmentation.cpp
  )

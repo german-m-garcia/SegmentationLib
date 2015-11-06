@@ -242,7 +242,7 @@ void Segmentation::segment_contours(const cv::Mat& grayGradient,
 		cv::Mat& original, cv::Mat& paint, int scale, bool rnd_colours) {
 	cv::Mat binary_copy;
 
-	cout << "Segmentation::segment_contours scale="<<scale<<endl;
+	//cout << "Segmentation::segment_contours scale="<<scale<<endl;
 	if (rnd_colours)
 		paint = Mat::zeros(grayGradient.rows, grayGradient.cols, CV_8UC3);
 	else

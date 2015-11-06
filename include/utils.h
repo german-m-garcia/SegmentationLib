@@ -14,8 +14,14 @@
 #include <ratio>
 #include <iostream>
 
+
+
 using namespace std;
 using namespace std::chrono;
+
+const size_t ERROR_IN_COMMAND_LINE = 1;
+const size_t SUCCESS = 0;
+const size_t ERROR_UNHANDLED_EXCEPTION = 2;
 
 class Utils {
 public:
@@ -24,18 +30,21 @@ public:
 	virtual ~Utils() {
 	}
 
-	void tick() {
-		t0 = high_resolution_clock::now();
-	}
+	int parse_args(int argc, char **argv, double& thres, int& scales, int& starting_scale, int& propagation_scale,  int& gpu,string& img_path, string& output_path);
 
-	void tock(string& text) {
-		tf = std::chrono::high_resolution_clock::now();
-		duration<double> time_span = duration_cast<duration<double>>(tf - t0);
 
-		cout << text << " took: " << time_span.count() * 1000 << " ms" << endl;
-	}
+void tick() {
+	t0 = high_resolution_clock::now();
+}
+
+void tock(string& text) {
+	tf = std::chrono::high_resolution_clock::now();
+	duration<double> time_span = duration_cast<duration<double>>(tf - t0);
+
+	cout << text << " took: " << time_span.count() * 1000 << " ms" << endl;
+}
 private:
-	high_resolution_clock::time_point t0, tf;
+high_resolution_clock::time_point t0, tf;
 };
 
 #endif /* INCLUDE_UTILS_H_ */
