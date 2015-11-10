@@ -43,6 +43,7 @@ Segment::Segment(Mat& original,Mat& segment_mat, Mat& binary_original,vector<Poi
 
 Segment::~Segment(){
 
+	//cout <<" deleting Segment::~Segment()"<<endl;
 }
 
 Segment::Segment (const Segment &obj):visualFeatures(obj.visualFeatures), mat_original_colour_(obj.mat_original_colour_) ,original_(obj.original_),
@@ -209,6 +210,7 @@ void Segment::computePCA(const vector<Point> &pts)
     //Store the center of the object
     Point cntr = Point(static_cast<int>(pca_analysis.mean.at<double>(0, 0)),
                       static_cast<int>(pca_analysis.mean.at<double>(0, 1)));
+    center_ = cntr;
     //Store the eigenvalues and eigenvectors
 
     for (int i = 0; i < 2; ++i)

@@ -30,12 +30,13 @@ Segmentation::Segmentation(cv::Mat& src, bool gpu, int scales, int starting_scal
 }
 
 Segmentation::~Segmentation() {
+	cout<< " ~Segmentation() "<<endl;
 	// TODO Auto-generated destructor stub
 	for (unsigned int i = 0; i < actual_scales_; i++) {
 		image_pyramid_[i].release();
 		bilateral_filtered_pyramid_[i].release();
 		//output_segments_pyramid_[i].release();
-		for (unsigned int j = 0; j < actual_scales_; j++) {
+		for (unsigned int j = 0; j < segments_pyramid_[i].size(); j++) {
 			delete segments_pyramid_[i][j];
 		}
 	}

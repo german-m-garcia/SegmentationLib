@@ -34,6 +34,24 @@
  *
  */
 
+std::string Utils::remove_extension(const std::string& filename) {
+    size_t lastdot = filename.find_last_of(".");
+    if (lastdot == std::string::npos) return filename;
+    return filename.substr(0, lastdot);
+}
+
+string Utils::get_file_name(const string& s) {
+
+	char sep = '/';
+
+	size_t i = s.rfind(sep, s.length());
+	if (i != string::npos) {
+		return (s.substr(i + 1, s.length() - i));
+	}
+
+	return ("");
+}
+
 int Utils::parse_args(int argc, char **argv, double& thres, int& scales, int& starting_scale, int& propagation_scale, int& gpu,string& img_path, string& output_path) {
 
 

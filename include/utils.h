@@ -16,12 +16,15 @@
 
 
 
+
 using namespace std;
 using namespace std::chrono;
+using std::ostream;
 
 const size_t ERROR_IN_COMMAND_LINE = 1;
 const size_t SUCCESS = 0;
 const size_t ERROR_UNHANDLED_EXCEPTION = 2;
+
 
 class Utils {
 public:
@@ -31,6 +34,10 @@ public:
 	}
 
 	int parse_args(int argc, char **argv, double& thres, int& scales, int& starting_scale, int& propagation_scale,  int& gpu,string& img_path, string& output_path);
+
+	std::string remove_extension(const std::string& filename);
+
+	string get_file_name(const string& s);
 
 
 void tick() {
