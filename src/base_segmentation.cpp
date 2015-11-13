@@ -54,12 +54,14 @@ void BaseSegmentation::clean_data() {
 	segments.reserve(SEGMENTS);
 }
 
-Segment* BaseSegmentation::get_component_at_fast(int row, int col) {
+Segment* BaseSegmentation::get_segment_at_fast(int row, int col) {
 
 	int id = (int) component_id.at<uint16_t>(row, col);
+	cout <<"id="<<id<<endl;
 	if (id == 0)
 		return nullptr;
-	return segments[id];
+	return mapSegments[id];
+	//return segments[id];
 
 }
 

@@ -12,10 +12,10 @@ using namespace cv;
 using namespace std;
 
 SVMWrapper::SVMWrapper() {
-	// opencv3.0
-	//svm = SVM::create();
-	//svm->setType(SVM::C_SVC);
-	//svm->setKernel(SVM::RBF);
+	// TODO Auto-generated constructor stub
+	svm = SVM::create();
+	svm->setType(SVM::C_SVC);
+	svm->setKernel(SVM::RBF);
 
 }
 
@@ -99,58 +99,31 @@ void SVMWrapper::trainSVM() {
 //		feat -= min;
 //		feat *= 1.0 / (maxs[i] - mins[i]);
 //	}
+	Mat mask_nans = Mat(trainingData != trainingData);
+	trainingData.setTo(0.,mask_nans);
 
 
-
-	//cout <<trainingData<<endl;
-	//cout <<labels<<endl;
+	cout <<trainingData<<endl;
+	cout <<labels<<endl;
 
 
 	// Set up SVM's parameters
-	cv::SVMParams params;
-	{
-	params.svm_type = CvSVM::C_SVC;
-	//params.svm_type = CvSVM::EPS_SVR;
-	params.kernel_type = CvSVM::RBF;  //CvSVM::RBF, CvSVM::LINEAR ...
-	params.degree = 0;  // for poly
-	params.gamma = 10;  // for poly/rbf/sigmoid
-	params.coef0 = 0;  // for poly/sigmoid
+	// Set up SVM's parameters
+	Ptr<TrainData> data = TrainData::create(trainingData,ROW_SAMPLE,labels);
 
-	params.C = 7;  // for CV_SVM_C_SVC, CV_SVM_EPS_SVR and CV_SVM_NU_SVR
-	params.nu = 0.0;  // for CV_SVM_NU_SVC, CV_SVM_ONE_CLASS, and CV_SVM_NU_SVR
-	params.p = 0.1;  // for CV_SVM_EPS_SVR
-
-	params.class_weights = NULL;  // for CV_SVM_C_SVC
-	params.term_crit.type = CV_TERMCRIT_ITER + CV_TERMCRIT_EPS;
-	params.term_crit.max_iter = 1000;
-	params.term_crit.epsilon = 1e-6;
-	}
-
-	// Train the SVM
-
-	cout <<"trainingData.size()="<<trainingData.size()<<" trainingData.type()="<<trainingData.type()<<endl;
-	cout <<"labels.size()="<<labels.size()<<" labels.type()="<<labels.type()<<endl;
-	svm.train_auto(trainingData, labels, Mat(), Mat(), params, 10);
-
-
-	//SVM.save("/home/brego/martin/workspace/ObjectDetector/svm_model.xml");
-
-//	OpenCV 3.0
-//	Mat mask_nans = Mat(trainingData != trainingData);
-//	trainingData.setTo(0.,mask_nans);
-//	Ptr<TrainData> data = TrainData::create(trainingData,ROW_SAMPLE,labels);
-//	svm->trainAuto(data, 10
-//			,SVM::getDefaultGrid(SVM::C),
-//			                 //CvParamGrid(0.00001,5000,2),
-//			                 //CvSVM::get_default_grid(CvSVM::GAMMA),
-//			                 ParamGrid(0.0000001,5000,5),
-//			                 SVM::getDefaultGrid(SVM::P),
-//			                 SVM::getDefaultGrid(SVM::NU),
-//			                 SVM::getDefaultGrid(SVM::COEF),
-//			                 SVM::getDefaultGrid(SVM::DEGREE), true);
-
-
-
+	svm->trainAuto(data, 10
+			,SVM::getDefaultGrid(SVM::C),
+			                 //CvParamGrid(0.00001,5000,2),
+			                 //CvSVM::get_default_grid(CvSVM::GAMMA),
+			                 ParamGrid(0.0000001,5000,5),
+			                 SVM::getDefaultGrid(SVM::P),
+			                 SVM::getDefaultGrid(SVM::NU),
+			                 SVM::getDefaultGrid(SVM::COEF),
+			                 SVM::getDefaultGrid(SVM::DEGREE), true);
+//	//SVM.train(trainingData, labels, Mat(), Mat(), params);
+//	params = svm.get_params();
+//	cout << "SVM parameters:  gamma=" << params.gamma << " C=" << params.C
+//			<< " " << endl;
 }
 
 void SVMWrapper::testSVM(vector<Segment*>& test_objects) {
@@ -167,9 +140,7 @@ void SVMWrapper::testSVM(vector<Segment*>& test_objects) {
 //
 //		}
 		//cout << test_objects[i]->visualFeatures << " ";
-		float response = -svm.predict(test_objects[i]->visualFeatures, true);
-		// OpenCV 3.0
-		//		float response = svm->predict(test_objects[i]->visualFeatures);
+		float response = svm->predict(test_objects[i]->visualFeatures);
 		test_objects[i]->setClassLabel(response);
 		//cout << "predicted label=" << response << endl;
 

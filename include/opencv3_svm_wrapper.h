@@ -30,8 +30,8 @@
 #include "segment.h"
 
 
-
-//using namespace cv::ml;
+using namespace cv;
+using namespace cv::ml;
 using namespace std;
 
 
@@ -69,16 +69,15 @@ class SVMWrapper {
   /*
    * SVM training variables
    */
-  cv::SVM svm;
-  //Ptr<SVM> svm;
-  cv::Mat trainingData, labels;
+  Ptr<SVM> svm;
+  Mat trainingData, labels;
   double means[Segment::NUMBER_VISUAL_FEATS];
   double devs[Segment::NUMBER_VISUAL_FEATS];
   double mins[Segment::NUMBER_VISUAL_FEATS];
   double maxs[Segment::NUMBER_VISUAL_FEATS];
 
 
-  void prec_rec(cv::Mat& gt_img, cv::Mat& result_img, double& precision, double& recall,
+  void prec_rec(Mat& gt_img, Mat& result_img, double& precision, double& recall,
                 double& f1, double&pascal);
 
 

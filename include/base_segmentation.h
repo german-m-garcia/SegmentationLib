@@ -74,7 +74,7 @@ public:
 
 	void clean_data();
 
-	Segment* get_component_at_fast(int row, int col);
+	Segment* get_segment_at_fast(int row, int col);
 
 	vector<Segment*>& get_segments() {
 		return segments;

@@ -3,12 +3,13 @@ project (Segmentation)
 
 #set(OpenCV_DIR "~/workspace/opencv/build")
 #To build the project openCV is required
-find_package( OpenCV 2.4 REQUIRED)
+find_package( OpenCV 2.4 REQUIRED ml core gpu highgui)
 if(OpenCV_FOUND)
 	message("OPENCV FOUND")
 	MESSAGE( STATUS ${OpenCV_DIR})
 	MESSAGE( STATUS ${OpenCV_INCLUDE_DIRS})
 endif()
+message("OpenCV_LIBS (2.4?) = ${OpenCV_LIBS}")
 
 set(PCL_DIR "~/workspace/pcl/build/")
 find_package(PCL REQUIRED)
@@ -51,8 +52,8 @@ endif()
 
 add_library(SEGMENTATION SHARED
    ${CMAKE_CURRENT_SOURCE_DIR}/src/segmentation.cpp
-   #opencv3.0
-   #${CMAKE_CURRENT_SOURCE_DIR}/src/svm_wrapper.cpp
+   
+   ${CMAKE_CURRENT_SOURCE_DIR}/src/svm_wrapper.cpp
    ${CMAKE_CURRENT_SOURCE_DIR}/src/pcl_segmentation.cpp
    ${CMAKE_CURRENT_SOURCE_DIR}/src/base_segmentation.cpp
    ${CMAKE_CURRENT_SOURCE_DIR}/src/segment.cpp
@@ -70,9 +71,9 @@ add_library(SEGMENTATION SHARED
 
 #Create an Executable for segment reader
 add_executable(segment ${PROJECT_SOURCE_DIR}/segmenter.cpp)
-target_link_libraries( segment   SEGMENTATION ${Boost_LIBRARIES} ${OpenCV_LIBS} ${PCL_LIBRARIES})
+target_link_libraries( segment SEGMENTATION  ${Boost_LIBRARIES} ${OpenCV_LIBS} ${PCL_LIBRARIES})
 
 add_executable(ms_segment ${PROJECT_SOURCE_DIR}/ms_segmenter.cpp)
-target_link_libraries( ms_segment   SEGMENTATION  ${Boost_LIBRARIES} ${OpenCV_LIBS} ${PCL_LIBRARIES})
+target_link_libraries( ms_segment  SEGMENTATION ${Boost_LIBRARIES} ${OpenCV_LIBS} ${PCL_LIBRARIES} )
 
 

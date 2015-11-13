@@ -62,7 +62,7 @@ public:
 
 	void reset_colours(int scale, vector<Vec3b>& colours);
 
-	const vector<cv::Mat>& getOutputSegmentsPyramid() const {
+	vector<cv::Mat>& getOutputSegmentsPyramid() {
 		return output_segments_pyramid_;
 	}
 
@@ -73,6 +73,8 @@ public:
 	const vector<vector<Segment*> >& getSegmentsPyramid() const {
 		return segments_pyramid_;
 	}
+
+	void map_segments(int scale);
 
 	void print_results(Mat& dst, int last_n_scales);
 

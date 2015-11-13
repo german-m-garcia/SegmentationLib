@@ -12,6 +12,8 @@ using namespace std;
 using namespace cv;
 
 int main(int argc, char** argv) {
+
+	string text("Scharr segmentation: ");
 	Mat original_img,contours_mat, gradient,grayGradient;
 	double threshold = 0.01;//0.05;
 	Utils utils;
@@ -29,8 +31,14 @@ int main(int argc, char** argv) {
 	utils.tick();
 	Segmentation segmentation(original_img,gpu,scales,starting_scale);
 	segmentation.segment_pyramid(threshold);
+	segmentation.map_segments(0);
+	Segment* seg = segmentation.get_segment_at_fast(40,40);
+	if(seg != nullptr){
+		imshow("seg",seg->getBinaryMat());
+		waitKey(0);
+	}
 
-	string text("Scharr segmentation: ");
+
 	utils.tock(text);
 
 	//show some segments
@@ -51,8 +59,8 @@ int main(int argc, char** argv) {
 	segmentation.print_results(outMat,show_n_last_scales);
 	imwrite(output_path,outMat);
 
-//	imshow("outMat",outMat);
-//	waitKey(0);
+	imshow("outMat",outMat);
+	waitKey(0);
 
 //	gradient*= 255.;
 //	imwrite(outputPath,gradient);

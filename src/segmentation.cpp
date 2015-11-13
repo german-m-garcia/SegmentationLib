@@ -30,7 +30,7 @@ Segmentation::Segmentation(cv::Mat& src, bool gpu, int scales, int starting_scal
 }
 
 Segmentation::~Segmentation() {
-	cout<< " ~Segmentation() "<<endl;
+
 	// TODO Auto-generated destructor stub
 	for (unsigned int i = 0; i < actual_scales_; i++) {
 		image_pyramid_[i].release();
@@ -567,6 +567,36 @@ void Segmentation::edge_tests(Mat& src, double gradient_threshold) {
 
 	waitKey(0);
 
+}
+
+
+/*
+ * maps the segments of a given scale so that they can be retrieved
+ * by get_segment_at_scale
+ */
+void Segmentation::map_segments(int scale){
+	assert(scale >= 0 && scale <actual_scales_);
+	component_id = cv::Mat::zeros(output_segments_pyramid_[scale].size(), CV_16UC1);
+	vector<Segment*>& segments = segments_pyramid_[scale];
+	//iterate over the segments
+	unsigned int id = 2;
+	for(Segment* seg: segments){
+		//iterate over their points
+		seg->computeFeatures();
+		Mat idMat = (seg->getBinaryMat()/255)*id;
+		idMat.convertTo(idMat,CV_16UC1);
+//		imshow("seg->getBinaryMat()",seg->getBinaryMat());
+//		waitKey(0);
+		idMat.copyTo(component_id,seg->getBinaryMat());
+		//cout <<component_id(seg->getBoundRect())<<endl;
+		//cout <<" added segment #"<<id<<endl;
+		mapSegments[id] = seg;
+		id++;
+	}
+	//Mat tmp;
+	//component_id.convertTo(tmp,CV_8UC1);
+	//imshow("component_id",tmp);
+	//waitKey(0);
 }
 
 /*
