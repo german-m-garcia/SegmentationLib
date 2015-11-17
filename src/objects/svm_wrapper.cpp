@@ -6,7 +6,7 @@
  */
 
 //#include <opencv2/core/core.hpp>
-#include "svm_wrapper.h"
+#include "objects/svm_wrapper.h"
 
 using namespace cv;
 using namespace std;
