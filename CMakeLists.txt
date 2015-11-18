@@ -53,7 +53,8 @@ endif()
 add_library(SEGMENTATION SHARED
    ${CMAKE_CURRENT_SOURCE_DIR}/src/segmentation.cpp
    
-   ${CMAKE_CURRENT_SOURCE_DIR}/src/svm_wrapper.cpp
+   ${CMAKE_CURRENT_SOURCE_DIR}/src/objects/svm_wrapper.cpp
+   ${CMAKE_CURRENT_SOURCE_DIR}/src/objects/ObjectDetector.cpp
    ${CMAKE_CURRENT_SOURCE_DIR}/src/pcl_segmentation.cpp
    ${CMAKE_CURRENT_SOURCE_DIR}/src/base_segmentation.cpp
    ${CMAKE_CURRENT_SOURCE_DIR}/src/segment.cpp
@@ -63,7 +64,7 @@ add_library(SEGMENTATION SHARED
    ${CMAKE_CURRENT_SOURCE_DIR}/src/cluster_normals_to_planes.cpp    
    ${CMAKE_CURRENT_SOURCE_DIR}/src/utils.cpp  
    #remove if using the latest PCL 
-   #${CMAKE_CURRENT_SOURCE_DIR}/src/lccp_segmentation.cpp
+   ${CMAKE_CURRENT_SOURCE_DIR}/src/lccp_segmentation.cpp
  )
 
  
