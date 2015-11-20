@@ -94,6 +94,10 @@ public:
 		return random_colour_;
 	}
 
+	const Vec3b& getLabel() const {
+		return random_colour_;
+	}
+
 	//for matching
 	void re_colour(Vec3b new_colour);
 

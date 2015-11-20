@@ -46,12 +46,14 @@ Segment::~Segment(){
 	//cout <<" deleting Segment::~Segment()"<<endl;
 }
 
-Segment::Segment (const Segment &obj):visualFeatures(obj.visualFeatures), mat_original_colour_(obj.mat_original_colour_) ,original_(obj.original_),
-		histImage_(obj.histImage_),h_hist(obj.h_hist), s_hist(obj.s_hist), v_hist(obj.v_hist){
+
+Segment::Segment (const Segment &obj):visualFeatures(obj.visualFeatures), mat_original_colour_(obj.mat_original_colour_), random_colour_mat_(obj.random_colour_mat_)
+,binary_mat_(obj.binary_mat_), contour_(obj.contour_),random_colour_(obj.random_colour_)
+,original_(obj.original_),
+		histImage_(obj.histImage_),h_hist(obj.h_hist), s_hist(obj.s_hist), v_hist(obj.v_hist), mask_(obj.mask_),class_label(obj.class_label),bound_rect(obj.bound_rect),
+		segment_size_(obj.segment_size_){
    // body of constructor
 
-	//create a random colour
-	random_colour_;
 }
 
 void Segment::addPoint(const Point2i& point,const Vec3b& colour){

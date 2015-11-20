@@ -28,6 +28,8 @@ private:
 
 	//need a bunch of segments for each frame
 	vector < vector <Segment*> > segments;
+	//the real apperances for each frame
+	vector <Mat> originals;
 	//need an SVM?
 	SVMWrapper svm;
 	//a path to where the data can be stored and debugged
