@@ -43,15 +43,15 @@ void SVMWrapper::add_training_data(vector<Segment*>& objects,
 		vector<Segment*>& background_objects) {
 
 	//generate the training Mat
-	Mat localTrainingDataMat = objects[0]->visualFeatures; //(objects.size(), NUMBER_VISUAL_FEATS, CV_32FC1);
+	Mat localTrainingDataMat = objects[0]->visualFeatures_; //(objects.size(), NUMBER_VISUAL_FEATS, CV_32FC1);
 	//add positive examples
 	for (int i = 1; i < objects.size(); i++)
-		vconcat(localTrainingDataMat, objects[i]->visualFeatures,
+		vconcat(localTrainingDataMat, objects[i]->visualFeatures_,
 				localTrainingDataMat);
 
 	//add negative examples
 	for (int i = 0; i < background_objects.size(); i++)
-		vconcat(localTrainingDataMat, background_objects[i]->visualFeatures,
+		vconcat(localTrainingDataMat, background_objects[i]->visualFeatures_,
 				localTrainingDataMat);
 
 
@@ -140,7 +140,7 @@ void SVMWrapper::testSVM(vector<Segment*>& test_objects) {
 //
 //		}
 		//cout << test_objects[i]->visualFeatures << " ";
-		float response = svm->predict(test_objects[i]->visualFeatures);
+		float response = svm->predict(test_objects[i]->visualFeatures_);
 		test_objects[i]->setClassLabel(response);
 		//cout << "predicted label=" << response << endl;
 

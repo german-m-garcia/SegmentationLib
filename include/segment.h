@@ -111,8 +111,8 @@ public:
 		return center_;
 	}
 
-	Mat visualFeatures;
-	static const int NHISTOGRAMBINS = 128; //256
+	Mat visualFeatures_;
+	static const int NHISTOGRAMBINS = 32;//128; //256
 	static const int NUMBER_VISUAL_FEATS=NHISTOGRAMBINS*3;
 
 protected:
@@ -163,6 +163,8 @@ private:
 	vector<double> orientations_;
 	vector<double> modules_;
 	Point2i center_;
+	Mat pca_data_;
+	Mat huMat_;
 
 
 

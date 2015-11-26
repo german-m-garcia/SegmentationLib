@@ -57,10 +57,10 @@ void Segmentation::bilateral_filter(bool gpu, cv::Mat& src_dst) {
 #ifdef CUDA_ENABLED
 	if (gpu) {
 		//cv::bilateralFilter(src, tmp_f, 0, 25, 50);
-		cuda::GpuMat d_src(src_dst), d_src_a, d_tmp_f;
-		//cuda::cvtColor(d_src, d_src_a, CV_BGR2BGRA);
+		gpu::GpuMat d_src(src_dst), d_src_a, d_tmp_f;
+		//gpu::cvtColor(d_src, d_src_a, CV_BGR2BGRA);
 
-		cuda::bilateralFilter(d_src, d_tmp_f, 0, 25, 50);
+		gpu::bilateralFilter(d_src, d_tmp_f, 0, 25, 50);
 		d_tmp_f.download(src_dst);
 
 	} else {
@@ -176,10 +176,10 @@ void Segmentation::preprocess(bool gpu, cv::Mat& src, int scale) {
 #ifdef CUDA_ENABLED
 	if (gpu) {
 		//cv::bilateralFilter(src, tmp_f, 0, 25, 50);
-		cuda::GpuMat d_src(src), d_src_a, d_tmp_f;
-		//cuda::cvtColor(d_src, d_src_a, CV_BGR2BGRA);
+		gpu::GpuMat d_src(src), d_src_a, d_tmp_f;
+		//gpu::cvtColor(d_src, d_src_a, CV_BGR2BGRA);
 
-		cuda::bilateralFilter(d_src, d_tmp_f, 0, 25, 50);
+		gpu::bilateralFilter(d_src, d_tmp_f, 0, 25, 50);
 		d_tmp_f.download(tmp_f);
 		src = tmp_f;
 	} else {
@@ -197,15 +197,15 @@ void Segmentation::mean_shift(const cv::Mat& src, double sp, double sr,
 
 	Mat segmentation_result;
 #ifdef CUDA_ENABLED
-	cuda::GpuMat k_img(src), k_imga, k_dst, k_dsta;
+	gpu::GpuMat k_img(src), k_imga, k_dst, k_dsta;
 
-	cuda::cvtColor(k_img, k_imga, CV_BGR2BGRA);
+	gpu::cvtColor(k_img, k_imga, CV_BGR2BGRA);
 
-	cuda::bilateralFilter(k_imga, k_dsta, -1, 5, BORDER_CONSTANT);
+	gpu::bilateralFilter(k_imga, k_dsta, -1, 5, BORDER_CONSTANT);
 	//Mat filtered;
 	//k_dst.download(filtered);
 	//cout << "mean shift..." << endl;
-	meanShiftSegmentation(k_dsta, segmentation_result, sp, sr, min_size,
+	gpu::meanShiftSegmentation(k_dsta, segmentation_result, sp, sr, min_size,
 			TermCriteria(2, -1, 0.001));
 	cv::cvtColor(segmentation_result, segmentation_result, CV_BGRA2BGR);
 	//cout << "downloading from GPU..." << endl;

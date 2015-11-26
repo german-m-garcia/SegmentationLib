@@ -23,21 +23,24 @@ Segment::Segment(Mat& original,Mat& segment_mat, Mat& binary_original,vector<Poi
 		random_colour_mat_(segment_mat), binary_mat_(binary_original),contour_(contour),random_colour_(colour),bound_rect(rect),
 		segment_size_(segment_size), eigen_vecs(2),eigen_val(2),orientations_(2),modules_(2){
 
+	pca_data_ = Mat::zeros(1,4,CV_32FC1);
+	huMat_ = Mat::zeros(1,7,CV_32FC1);
 	mat_original_colour_ = Mat::zeros(original.rows,original.cols,CV_8UC3);
 	binary_mat_ = binary_mat_ > 0;
 	original.copyTo(mat_original_colour_, binary_mat_(bound_rect));
 	dilate(binary_mat_,binary_mat_,Mat());
 	dilate(binary_mat_,binary_mat_,Mat());
-	computeHistogram();
-	if(DEBUG){
-		Mat original_size_mat = Mat::zeros(binary_mat_.rows,binary_mat_.cols,CV_8UC3);
-		original.copyTo(original_size_mat(bound_rect),binary_mat_(bound_rect));
-		computePCA(contour_,original_size_mat);
-		imshow("PCA",original_size_mat);
-		waitKey(0);
-	}
-	else
-		computePCA(contour_);
+//	computeHistogram();
+//	if(DEBUG){
+//		Mat original_size_mat = Mat::zeros(binary_mat_.rows,binary_mat_.cols,CV_8UC3);
+//		original.copyTo(original_size_mat(bound_rect),binary_mat_(bound_rect));
+//		computePCA(contour_,original_size_mat);
+//		imshow("PCA",original_size_mat);
+//		waitKey(0);
+//	}
+//	else
+//		computePCA(contour_);
+	computeFeatures();
 
 }
 
@@ -47,13 +50,14 @@ Segment::~Segment(){
 }
 
 
-Segment::Segment (const Segment &obj):visualFeatures(obj.visualFeatures), mat_original_colour_(obj.mat_original_colour_), random_colour_mat_(obj.random_colour_mat_)
+Segment::Segment (const Segment &obj):visualFeatures_(obj.visualFeatures_), mat_original_colour_(obj.mat_original_colour_), random_colour_mat_(obj.random_colour_mat_)
 ,binary_mat_(obj.binary_mat_), contour_(obj.contour_),random_colour_(obj.random_colour_)
 ,original_(obj.original_),
 		histImage_(obj.histImage_),h_hist(obj.h_hist), s_hist(obj.s_hist), v_hist(obj.v_hist), mask_(obj.mask_),class_label(obj.class_label),bound_rect(obj.bound_rect),
 		segment_size_(obj.segment_size_){
    // body of constructor
-
+	pca_data_ = Mat::zeros(1,4,CV_32FC1);
+	huMat_ = Mat::zeros(1,7,CV_32FC1);
 }
 
 void Segment::addPoint(const Point2i& point,const Vec3b& colour){
@@ -72,19 +76,25 @@ void Segment::colour_this_segment(Mat& dst){
 
 void Segment::computeFeatures(){
 	computeHistogram();
-	visualFeatures = Mat(1,NUMBER_VISUAL_FEATS, CV_32FC1);
-	vector<Mat> vectorFeats = {h_hist.t(),s_hist.t(),v_hist.t()};
-	hconcat(vectorFeats,visualFeatures);
+	computePCA(contour_);
+	computeHuMoments();
+	visualFeatures_ = Mat(1,NUMBER_VISUAL_FEATS, CV_32FC1);
+	vector<Mat> vectorFeats = {h_hist.t(),s_hist.t(),v_hist.t(), pca_data_, huMat_};
+	hconcat(vectorFeats,visualFeatures_);
 }
 
 void Segment::computeHuMoments() {
 
+
+	Moments	moment = cv::moments(mask_, true);
+	double hu[7];
+	cv::HuMoments(moment, hu);
+	for(int i=0;i<7;i++)
+		huMat_.at<float>(0,i) = hu[i];
 }
 
 void Segment::computeHistogram() {
-		if (!mat_original_colour_.data) {
-			return;
-		}
+		assert(mat_original_colour_.data);
 
 		mask_ = Mat::zeros(mat_original_colour_.rows,mat_original_colour_.cols,CV_8UC1);
 		//threshold grayscale to binary image
@@ -228,6 +238,10 @@ void Segment::computePCA(const vector<Point> &pts)
 
     modules_[0] = sqrt( eigen_vecs[0].x * eigen_vecs[0].x + eigen_vecs[0].y * eigen_vecs[0].y  );
     modules_[1] = sqrt( eigen_vecs[1].x * eigen_vecs[1].x + eigen_vecs[1].y * eigen_vecs[1].y  );
+    pca_data_.at<float>(0,0) = modules_[0]/binary_mat_.cols;
+    pca_data_.at<float>(0,1) = modules_[1]/binary_mat_.cols;
+    pca_data_.at<float>(0,2) = orientations_[0]/(360.);
+    pca_data_.at<float>(0,3) = orientations_[1]/(360.);;
 
 
 }

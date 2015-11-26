@@ -16,9 +16,12 @@
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/imgproc/types_c.h"
 
+
+
 #ifdef CUDA_ENABLED
-	#include "opencv2/cudaarithm.hpp"
-	#include "opencv2/cudaimgproc.hpp"
+	//#include "opencv2/cudaarithm.hpp"
+	//#include "opencv2/cudaimgproc.hpp"
+#include "opencv2/gpu/gpu.hpp"
 #endif
 
 #include "base_segmentation.h"

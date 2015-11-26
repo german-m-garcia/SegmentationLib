@@ -15,9 +15,15 @@
 #include <iostream>
 
 
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_types.h>
+#include <opencv2/imgproc/imgproc.hpp>
+
 
 
 using namespace std;
+using namespace cv;
+using namespace pcl;
 using namespace std::chrono;
 using std::ostream;
 
@@ -35,9 +41,22 @@ public:
 
 	int parse_args(int argc, char **argv, double& thres, int& scales, int& starting_scale, int& propagation_scale,  int& gpu,string& img_path, string& output_path);
 
+	int parse_args(int argc, char **argv, double& thres, int& scales, int& starting_scale, int& propagation_scale, int& gpu,string& img_path, string& output_path, string& svm_path);
+
+	int parse_args(int argc, char **argv, double& thres, int& scales, int& starting_scale, int& propagation_scale, int& gpu,string& img_path, string& output_path, string& svm_path, string& pcls_path);
+
 	std::string remove_extension(const std::string& filename);
 
 	string get_file_name(const string& s);
+
+	void merge_two_bounding_rects(Rect& rec1,Rect& rec2, Rect& res);
+
+
+	void image_to_pcl(Mat& img, Mat& depth,
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud, int cx, int cy, Rect& rect);
+
+	void image_to_pcl(Mat& img, Mat& depth,
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud);
 
 
 void tick() {

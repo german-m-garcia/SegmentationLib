@@ -28,7 +28,7 @@
 #include <boost/serialization/assume_abstract.hpp>
 
 #include "segment.h"
-
+#include <string>
 
 
 //using namespace cv::ml;
@@ -48,9 +48,11 @@ class SVMWrapper {
  public:
   SVMWrapper();
 
+  SVMWrapper(string& model_path);
+
   virtual ~SVMWrapper();
 
-
+  void load_model();
 
   void add_training_data(vector<Segment*>& objects,
 			vector<Segment*>& background_objects);
@@ -76,6 +78,8 @@ class SVMWrapper {
   double devs[Segment::NUMBER_VISUAL_FEATS];
   double mins[Segment::NUMBER_VISUAL_FEATS];
   double maxs[Segment::NUMBER_VISUAL_FEATS];
+
+  string model_path_;
 
 
   void prec_rec(cv::Mat& gt_img, cv::Mat& result_img, double& precision, double& recall,
