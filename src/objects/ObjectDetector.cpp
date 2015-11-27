@@ -9,6 +9,7 @@
 #include "objects/ObjectDetector.h"
 #include <pcl/visualization/pcl_visualizer.h>
 
+
 /*
  * Kinfu
  */
@@ -20,6 +21,10 @@
 
 #include <pcl/common/time.h>
 #include <pcl/point_cloud.h>
+
+//#include "cuda_runtime.h"
+#include <omp.h>
+
 
 using namespace pcl;
 using namespace pcl::gpu;
@@ -61,41 +66,72 @@ void ObjectDetector::add_training_data(
 
 }
 
+//void ObjectDetector::add_training_data(
+//		std::vector<Segment*>& foreground_segments,
+//		std::vector<Segment*>& background_segments, Cloudptr point_cloud,
+//		Mat& cropped_img, Mat& cropped_depth) {
+//	svm.add_training_data(foreground_segments, background_segments);
+//	point_clouds.push_back(point_cloud);
+//	Mat img_to_push = Mat::zeros(dimensions_img, dimensions_img, CV_8UC3);
+//	Mat depth_to_push = Mat::zeros(dimensions_img, dimensions_img, CV_32FC1);
+//	int x = dimensions_img / 2 - cropped_img.cols / 2;
+//	int y = dimensions_img / 2 - cropped_img.rows / 2;
+//	Rect rect(x, y, cropped_img.cols, cropped_img.rows);
+//	cout << " rect=" << rect << " cropped_img.size()=" << cropped_img.size()
+//			<< endl;
+//	cout << "img_to_push.size()=" << img_to_push.size()
+//			<< "img_to_push(rect).size()=" << img_to_push(rect).size() << endl;
+//	cropped_img.copyTo(img_to_push(rect));
+//	cropped_depth.copyTo(depth_to_push(rect));
+////	imshow("img_to_push",img_to_push);
+////	waitKey(0);
+//	frames_.push_back(cropped_img);
+//	double min,max;
+//
+//	minMaxLoc(depth_to_push,&min,&max);
+////	for(int i=0;i<depth_to_push.rows;i++){
+////		for(int j=0;j<depth_to_push.cols;j++){
+////			if(depth_to_push.at<float>(i,j)>0.)
+////				cout <<depth_to_push.at<float>(i,j)<<" ";
+////		}
+////		//cout << endl;
+////	}
+//	cout <<" in depth found min,max="<<min<<" "<<max<<endl;
+//	//depth_to_push = depth_to_push*1000.;
+//	depth_to_push.convertTo(depth_to_push,CV_16UC1);
+//
+//	depths_.push_back(depth_to_push);
+//
+//}
+
 void ObjectDetector::add_training_data(
 		std::vector<Segment*>& foreground_segments,
 		std::vector<Segment*>& background_segments, Cloudptr point_cloud,
-		Mat& cropped_img, Mat& cropped_depth) {
+		Mat& img, Mat& depth) {
 	svm.add_training_data(foreground_segments, background_segments);
 	point_clouds.push_back(point_cloud);
-	Mat img_to_push = Mat::zeros(dimensions_img, dimensions_img, CV_8UC3);
-	Mat depth_to_push = Mat::zeros(dimensions_img, dimensions_img, CV_32FC1);
-	int x = dimensions_img / 2 - cropped_img.cols / 2;
-	int y = dimensions_img / 2 - cropped_img.rows / 2;
-	Rect rect(x, y, cropped_img.cols, cropped_img.rows);
-	cout << " rect=" << rect << " cropped_img.size()=" << cropped_img.size()
-			<< endl;
-	cout << "img_to_push.size()=" << img_to_push.size()
-			<< "img_to_push(rect).size()=" << img_to_push(rect).size() << endl;
-	cropped_img.copyTo(img_to_push(rect));
-	cropped_depth.copyTo(depth_to_push(rect));
-//	imshow("img_to_push",img_to_push);
-//	waitKey(0);
-	frames_.push_back(cropped_img);
+	resize(img,img, Size(cols,rows));
+	frames_.push_back(img);
 	double min,max;
-
-	minMaxLoc(depth_to_push,&min,&max);
-//	for(int i=0;i<depth_to_push.rows;i++){
-//		for(int j=0;j<depth_to_push.cols;j++){
-//			if(depth_to_push.at<float>(i,j)>0.)
-//				cout <<depth_to_push.at<float>(i,j)<<" ";
-//		}
-//		//cout << endl;
-//	}
+	minMaxLoc(depth,&min,&max);
 	cout <<" in depth found min,max="<<min<<" "<<max<<endl;
 	//depth_to_push = depth_to_push*1000.;
-	depth_to_push.convertTo(depth_to_push,CV_16UC1);
 
-	depths_.push_back(depth_to_push);
+	//depth *= 1000.;
+	cv::Mat_<unsigned short int> depth_int(depth.rows,depth.cols);
+	for(int i=0;i<depth.rows;i++){
+		for(int j=0;j<depth.cols;j++){
+			depth_int(i,j) = (unsigned short int)(depth.at<float>(i,j)*1000.f);
+		}
+	}
+	//depth.convertTo(depth,CV_16UC1);
+	minMaxLoc(depth_int,&min,&max);
+	cout <<" in depth found min,max="<<min<<" "<<max<<endl;
+
+
+	cout <<"original resolution="<<depth_int.size()<<endl;
+	resize(depth_int,depth_int, Size(cols,rows));
+	depths_.push_back(depth_int);
 
 }
 
@@ -117,10 +153,10 @@ void ObjectDetector::display_cloud(PlainCloudptr& cloud) {
 }
 
 void ObjectDetector::display_cloud(Cloudptr& cloud) {
-	pcl::visualization::PCLVisualizer viewer("3d Viewer");
+	pcl::visualization::PCLVisualizer viewer("Kinfu");
 	viewer.setBackgroundColor(0, 0, 0);
 	viewer.addPointCloud < pcl::PointXYZRGB > (cloud, "sample cloud");
-	viewer.addCoordinateSystem(1.0);
+	//viewer.addCoordinateSystem(1.0);
 	viewer.spin();
 }
 
@@ -141,10 +177,14 @@ void ObjectDetector::align_point_clouds() {
 	//display_cloud(final);
 }
 
+
+
 void ObjectDetector::run_kinfu(float vsz) {
 
-	pcl::gpu::KinfuTracker kinfu_(dimensions_img, dimensions_img);
+	pcl::gpu::KinfuTracker kinfu_(rows,cols);
 	//Init Kinfu Tracker
+
+	kinfu_.setDepthIntrinsics(fx,fy,cx,cy);
 
 	Eigen::Vector3f volume_size = Vector3f::Constant(vsz/*meters*/);
 	kinfu_.volume().setSize(volume_size);
@@ -159,57 +199,56 @@ void ObjectDetector::run_kinfu(float vsz) {
 	kinfu_.volume().setTsdfTruncDist(0.030f/*meters*/);
 	kinfu_.setIcpCorespFilteringParams(0.1f/*meters*/, sin(pcl::deg2rad(20.f)));
 	//kinfu_.setDepthTruncationForICP(5.f/*meters*/);
-	kinfu_.setCameraMovementThreshold(0.001f);
+	kinfu_.setCameraMovementThreshold(0.0001f);
 
+//	const int max_color_integration_weight = 2;
+//	kinfu_.initColorIntegration(max_color_integration_weight);
+
+
+	KinfuTracker::DepthMap depth_device_;
+	KinfuTracker::View colors_device_;
 	for (unsigned int i = 0; i < frames_.size(); i++) {
 		Mat frame = frames_[i];
 		Mat depth = depths_[i];
 
-
+		//imshow("kinfuing with this frame",frame);
+		//waitKey(0);
 
 		//upload depth data to GPU
-		PtrStepSz<const unsigned short> depth_;
-		std::vector<unsigned short> source_depth_data_;
-		source_depth_data_.resize(depth.cols * depth.rows);
+		PtrStepSz<const unsigned short int> depth_;
+		depth_.cols = depth.cols;
+		depth_.rows = depth.rows;
+		depth_.step = depth_.cols * sizeof(const unsigned short int);//depth_.elemSize();
+
+		//cout <<" params: depth_.step="<<depth_.step<<" depth_.cols="<<depth_.cols<<" depth_.rows="<<depth_.rows<<endl;
+		std::vector<unsigned short int> source_depth_data_;
+		source_depth_data_.resize(depth_.cols * depth_.rows);
+
 		memcpy(&source_depth_data_[0], depth.data,
 				sizeof(unsigned short int) * depth.cols * depth.rows);
 		depth_.data = &source_depth_data_[0];
-		KinfuTracker::DepthMap depth_device_;
-		depth_device_.upload (depth.data, depth.step, depth.rows, depth.cols);
+		depth_device_.upload (depth_.data, depth_.step, depth_.rows, depth_.cols);
 
-		//upload colour data to GPU
-		PtrStepSz<const KinfuTracker::PixelRGB> rgb24;
-		std::vector<KinfuTracker::PixelRGB> source_image_data_;
-		source_image_data_.resize(frame.cols * frame.rows);
-		//WTF:memcpy asi, a pincho y sin contemplaciones, la receta del essssito :P
-		memcpy(&source_image_data_[0], frame.data,
-				sizeof(Vec3b) * frame.cols * frame.rows);
-		rgb24.data = &source_image_data_[0];
-		KinfuTracker::View colors_device_;
-		colors_device_.upload (rgb24.data, rgb24.step, rgb24.rows, rgb24.cols);
 
-		//run kinfu
-		kinfu_ (depth_device_, colors_device_);
-		cout << "KinfuTracker started without complaining" << endl;
+		kinfu_ (depth_device_);
+
+
 
 
 	}
-	//download the point cloud
+
 	PointCloud<PointXYZ>::Ptr cloud_ptr_ (new PointCloud<PointXYZ>);
 	DeviceArray<PointXYZ> cloud_buffer_device_;
-	DeviceArray<RGB> point_colors_device_;
+
 
 	DeviceArray<PointXYZ> extracted = kinfu_.volume().fetchCloud (cloud_buffer_device_);
-
-	cloud_buffer_device_.download(cloud_ptr_->points);
-
-	//kinfu_.colorVolume().fetchColors(extracted, point_colors_device_);
-	//point_colors_device_.download(cloud_ptr_->points);
+	extracted.download(cloud_ptr_->points);
 	cloud_ptr_->width = (int)cloud_ptr_->points.size ();
 	cloud_ptr_->height = 1;
 
 
-	cout <<"> kinfu fetched cloud has this many points: "<<(int)cloud_ptr_->points.size ()<<endl;
+
+	cout <<"> kinfu fetched cloud_ptr_ has this many points: "<<(int)cloud_ptr_->points.size ()<<endl;
 
 	display_cloud(cloud_ptr_);
 

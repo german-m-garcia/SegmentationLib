@@ -62,6 +62,11 @@ private:
 	bool train_, test_;
 
 	const static int dimensions_img = 300;
+	//const static int rows = 480, cols = 640;
+	const static int rows = 1234, cols = 1624;
+
+	float fx = 1368.30, fy = 1368.3, cx = cols/2., cy = rows/2.;
+
 
 	void display_cloud(PlainCloudptr& cloud);
 

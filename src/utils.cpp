@@ -293,6 +293,19 @@ void Utils::image_to_pcl(Mat& img, Mat& depth,
 
 }
 
+void Utils::prune_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_dst){
+	int npoints = 0;
+	for(pcl::PointXYZRGB& pt : *cloud_src){
+		if(pt.r != 0 || pt.g != 0 || pt.b !=0){
+			cloud_dst->points.push_back(pt);
+			npoints++;
+		}
+
+	}
+	cloud_dst->width = npoints;
+	cloud_dst->height = 1;
+}
+
 void Utils::image_to_pcl(Mat& img, Mat& depth,
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud) {
 
