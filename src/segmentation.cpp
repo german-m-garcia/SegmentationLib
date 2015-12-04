@@ -264,7 +264,7 @@ void Segmentation::segment_contours(const cv::Mat& grayGradient,
 
 	//cout << "contours.size()=" << contours.size() << endl;
 
-	for (int idx = 0; idx < contours.size(); idx++) {
+	for (unsigned int idx = 0; idx < contours.size(); idx++) {
 
 		Mat mask = Mat::zeros(grayGradient.rows, grayGradient.cols, CV_8UC1);
 		Mat segment = Mat::zeros(grayGradient.rows, grayGradient.cols, CV_8UC3);

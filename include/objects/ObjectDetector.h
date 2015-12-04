@@ -35,6 +35,13 @@ public:
 
 	 void test_data(std::vector<Segment*>& test_segments);
 
+	 void unify_detections(Mat& mask);
+
+
+	 bool test_data(std::vector<Segment*>& test_segments,Mat& original_img, Mat& original_depth,vector<Mat>& masks, Mat& debug, vector<Point3d>& slc_position, vector<Point3d>& slc_orientation);
+
+	 void find_slc_bounding_box(Mat& detections, vector<Rect>& rect, vector<Mat>& masks);
+
 	void train();
 
 	void view_examples();

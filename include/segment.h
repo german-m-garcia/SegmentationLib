@@ -10,6 +10,8 @@
 
 #include <opencv2/opencv.hpp>
 #include <set>
+#include <pcl/point_types.h>
+#include <pcl/io/pcd_io.h>
 
 using namespace std;
 using namespace cv;
@@ -26,6 +28,12 @@ public:
 	void addPoint(const Point2i& point,const Vec3b& colour);
 
 	void computeFeatures();
+
+	void add_precomputed_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud, pcl::PointCloud<pcl::Normal>::Ptr& normals);
+
+	void addPcl(Mat &original_img, Mat& original_depth);
+
+	void addPcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud);
 
 
 	const Mat& getImg() const {
@@ -140,6 +148,9 @@ protected:
 
 	Rect bound_rect;
 
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_cloud_;
+	pcl::PointCloud<pcl::Normal>::Ptr normals_;
+
 
 	//add some features
 
@@ -165,6 +176,9 @@ private:
 	Point2i center_;
 	Mat pca_data_;
 	Mat huMat_;
+	Mat vfhMat_;
+	Mat dimensions3DMat_;
+	vector<int> pcl_indices_;
 
 
 

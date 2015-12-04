@@ -52,12 +52,12 @@ void SVMWrapper::add_training_data(vector<Segment*>& objects,
 	Mat localTrainingDataMat = objects[0]->visualFeatures_; //(objects.size(), NUMBER_VISUAL_FEATS, CV_32FC1);
 	cout <<"localTrainingDataMat="<<localTrainingDataMat<<endl;
 	//add positive examples
-	for (int i = 1; i < objects.size(); i++)
+	for (unsigned int i = 1; i < objects.size(); i++)
 		vconcat(localTrainingDataMat, objects[i]->visualFeatures_,
 				localTrainingDataMat);
 
 	//add negative examples
-	for (int i = 0; i < background_objects.size(); i++)
+	for (unsigned int i = 0; i < background_objects.size(); i++)
 		vconcat(localTrainingDataMat, background_objects[i]->visualFeatures_,
 				localTrainingDataMat);
 
@@ -65,11 +65,11 @@ void SVMWrapper::add_training_data(vector<Segment*>& objects,
 	//fill the labels mat
 	Mat localLabelsMat(objects.size() + background_objects.size(), 1, CV_32FC1);
 	//add positive example labels
-	for (int i = 0; i < objects.size(); i++)
+	for (unsigned int i = 0; i < objects.size(); i++)
 		localLabelsMat.at<float>(i, 0) = +1.0;
 
 	//add negative example labels
-	for (int i = objects.size(); i < objects.size() + background_objects.size();
+	for (unsigned int i = objects.size(); i < objects.size() + background_objects.size();
 			i++)
 		localLabelsMat.at<float>(i, 0) = 0.0;
 
@@ -168,7 +168,7 @@ void SVMWrapper::testSVM(vector<Segment*>& test_objects) {
 
 	Mat labelsMat(test_objects.size(), 1, CV_32FC1);
 	//iterate over the objects and predict
-	for (int i = 0; i < test_objects.size(); i++) {
+	for (unsigned int i = 0; i < test_objects.size(); i++) {
 //		for (int j = 0; j < Segment::NUMBER_VISUAL_FEATS; j++) {
 //			//objects[i]->visualFeatures.at<float>(0,j) -= means[i];
 //			//objects[i]->visualFeatures.at<float>(0,j) /= devs[i];

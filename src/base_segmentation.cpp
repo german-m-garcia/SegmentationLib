@@ -43,12 +43,12 @@ BaseSegmentation::BaseSegmentation() :
 
 BaseSegmentation::~BaseSegmentation() {
 	// TODO Auto-generated destructor stub
-	for (int i = 0; i < segments.size(); i++)
+	for (unsigned int i = 0; i < segments.size(); i++)
 		delete segments[i];
 }
 
 void BaseSegmentation::clean_data() {
-	for (int i = 0; i < segments.size(); i++)
+	for (unsigned int i = 0; i < segments.size(); i++)
 		delete segments[i];
 	segments.resize(0);
 	segments.reserve(SEGMENTS);
@@ -57,7 +57,7 @@ void BaseSegmentation::clean_data() {
 Segment* BaseSegmentation::get_segment_at_fast(int row, int col) {
 
 	int id = (int) component_id.at<uint16_t>(row, col);
-	cout <<"id="<<id<<endl;
+	//cout <<"id="<<id<<endl;
 	if (id == 0)
 		return nullptr;
 	return mapSegments[id];

@@ -18,6 +18,12 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <pcl/features/fpfh.h>
+#include <pcl/features/cvfh.h>
+#include <pcl/features/vfh.h>
+#include <pcl/point_types.h>
+#include <pcl/point_cloud.h>
+
 
 
 
@@ -50,6 +56,54 @@ public:
 	string get_file_name(const string& s);
 
 	void merge_two_bounding_rects(Rect& rec1,Rect& rec2, Rect& res);
+
+	void compute_normals(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
+			pcl::PointCloud<pcl::Normal>::Ptr& normals);
+
+	void compute_integral_normals(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
+			pcl::PointCloud<pcl::Normal>::Ptr& normals);
+
+	void compute_vfh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud, pcl::PointCloud<pcl::Normal>::Ptr& normals, Mat& vfh_features);
+
+	void compute_fpfh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,pcl::PointCloud<pcl::FPFHSignature33>::Ptr& fpfhs);
+
+	void compute_cvfh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,pcl::PointCloud<pcl::VFHSignature308>::Ptr& vfhFeatures);
+
+
+	void compute_pca(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pca_cloud,  Eigen::Matrix3f& eigenVectors);
+
+	void compute_pca_alt(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pca_cloud, Eigen::Matrix3f& eigenVectors);
+
+	void euler_from_R(Eigen::Matrix3f R,Point3d& angles);
+
+
+	void remove_outliers(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud);
+
+	void subtract_gravity_center(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src, Point3d& gravity_center);
+
+	void display_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,pcl::PointCloud<pcl::Normal>::Ptr normals,string& text);
+
+
+	void display_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud, string& text);
+
+	void display_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud, Eigen::Matrix3f& eigenVectors, string& text);
+
+	void compute_inertia(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud, Point3d& dimensions_3d);
+
+	void find_pcl_yaw(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud, Point3d& orientation);
+
+
+	void find_detection_yaw(Mat& mask, Mat& img,Mat& depth, Point3d& position,Point3d& orientation);
+
+
+	void compute_bounding_box(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,Point3d& dimensions_3d);
+
+	void cluster(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud);
+
+
+	void xyz_gravity_center(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud,  Point3d& gravity_center, double &max_z/*,Eigen::Matrix3f& eigenVectors*/);
+
+	void mask_to_pcl_indices(Mat& mask,vector<int>& indices );
 
 
 	void image_to_pcl(Mat& img, Mat& depth,
