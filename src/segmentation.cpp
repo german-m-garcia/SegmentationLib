@@ -8,6 +8,7 @@
 #include "segmentation.h"
 #include "base_segmentation.h"
 #include "segment.h"
+#include "thinning/thinner.h"
 #include <string>
 
 using namespace std;
@@ -18,15 +19,44 @@ Segmentation::Segmentation() {
 
 }
 
-Segmentation::Segmentation(cv::Mat& src, bool gpu, int scales, int starting_scale) :
-		original_img_(src),absolute_scales_(scales+1),actual_scales_(scales+1-starting_scale),starting_scale_(starting_scale) {
-	assert(scales>0&&starting_scale>=0 && starting_scale<scales);
+Segmentation::Segmentation(cv::Mat& src, bool gpu, int scales,
+		int starting_scale) :
+		original_img_(src), absolute_scales_(scales), actual_scales_(
+				scales - starting_scale), starting_scale_(starting_scale) {
+
+	assert(scales > 0 && starting_scale >= 0 && starting_scale <= scales);
 
 	image_pyramid_.reserve(absolute_scales_);
 	bilateral_filtered_pyramid_.reserve(absolute_scales_);
-	pyramid(gpu, src, absolute_scales_,starting_scale_);
+	pyramid(gpu, src, absolute_scales_, starting_scale_);
 	segments_pyramid_.resize(actual_scales_);
 	output_segments_pyramid_.resize(actual_scales_);
+	gradients_pyramid_.reserve(actual_scales_);
+	thresholded_gradients_pyramid_.reserve(actual_scales_);
+	//show_pyramids();
+
+}
+
+void Segmentation::init(cv::Mat& src, bool gpu, int scales,
+		int starting_scale)
+		 {
+
+	assert(scales > 0 && starting_scale >= 0 && starting_scale <= scales);
+
+	original_img_ =src;
+	absolute_scales_=scales;
+	actual_scales_=				scales - starting_scale;
+	starting_scale_=starting_scale;
+
+	image_pyramid_.reserve(absolute_scales_);
+	bilateral_filtered_pyramid_.reserve(absolute_scales_);
+	pyramid(gpu, src, absolute_scales_, starting_scale_);
+	segments_pyramid_.resize(actual_scales_);
+	output_segments_pyramid_.resize(actual_scales_);
+	gradients_pyramid_.reserve(actual_scales_);
+	thresholded_gradients_pyramid_.reserve(actual_scales_);
+	//show_pyramids();
+
 }
 
 Segmentation::~Segmentation() {
@@ -48,8 +78,71 @@ void Segmentation::show_pyramids() {
 		string name("bilateral pyramid - scale ");
 		string level = to_string(i);
 		imshow(name + level, bilateral_filtered_pyramid_[i]);
+		imwrite("/home/martin/Research/bil_" + name + level + ".png",
+				bilateral_filtered_pyramid_[i]);
+		imwrite("/home/martin/Research/original_" + name + level + ".png",
+				image_pyramid_[i]);
 	}
 	waitKey(0);
+}
+
+void Segmentation::fourier(Mat& src) {
+
+	Mat I;
+	cvtColor(src,I,CV_BGR2GRAY);
+
+	if(I.empty())
+		return;
+	Mat padded;                            //expand input image to optimal size
+	int m = getOptimalDFTSize(I.rows);
+	int n = getOptimalDFTSize(I.cols); // on the border add zero values
+	cout <<" I.size()="<<I.size()<<endl;
+	cout << "m,n= "<<m<<" "<<n<<endl;
+	copyMakeBorder(I, padded, 0, m - I.rows, 0, n - I.cols, BORDER_CONSTANT,
+			Scalar::all(0));
+
+	Mat planes[] = { Mat_<float>(padded), Mat::zeros(padded.size(), CV_32F) };
+	Mat complexI;
+	merge(planes, 2, complexI);  // Add to the expanded another plane with zeros
+
+	dft(complexI, complexI); // this way the result may fit in the source matrix
+
+	// compute the magnitude and switch to logarithmic scale
+	// => log(1 + sqrt(Re(DFT(I))^2 + Im(DFT(I))^2))
+	split(complexI, planes);    // planes[0] = Re(DFT(I), planes[1] = Im(DFT(I))
+	magnitude(planes[0], planes[1], planes[0]);         // planes[0] = magnitude
+	Mat magI = planes[0];
+
+	magI += Scalar::all(1);                    // switch to logarithmic scale
+	log(magI, magI);
+
+	// crop the spectrum, if it has an odd number of rows or columns
+	magI = magI(Rect(0, 0, magI.cols & -2, magI.rows & -2));
+
+	// rearrange the quadrants of Fourier image  so that the origin is at the image center
+	int cx = magI.cols / 2;
+	int cy = magI.rows / 2;
+
+	Mat q0(magI, Rect(0, 0, cx, cy));   // Top-Left - Create a ROI per quadrant
+	Mat q1(magI, Rect(cx, 0, cx, cy));  // Top-Right
+	Mat q2(magI, Rect(0, cy, cx, cy));  // Bottom-Left
+	Mat q3(magI, Rect(cx, cy, cx, cy)); // Bottom-Right
+
+	Mat tmp;                      // swap quadrants (Top-Left with Bottom-Right)
+	q0.copyTo(tmp);
+	q3.copyTo(q0);
+	tmp.copyTo(q3);
+
+	q1.copyTo(tmp);                // swap quadrant (Top-Right with Bottom-Left)
+	q2.copyTo(q1);
+	tmp.copyTo(q2);
+
+	normalize(magI, magI, 0, 1, CV_MINMAX); // Transform the matrix with float values into a
+											// viewable image form (float between values 0 and 1).
+
+	imshow("Input Image", I);    // Show the result
+	imshow("spectrum magnitude", magI);
+	waitKey();
 }
 
 void Segmentation::bilateral_filter(bool gpu, cv::Mat& src_dst) {
@@ -70,7 +163,16 @@ void Segmentation::bilateral_filter(bool gpu, cv::Mat& src_dst) {
 		src_dst = tmp_f;
 	}
 #else
-	cv::bilateralFilter(src_dst, tmp_f, 0, 15, 7);
+
+	//pyrMeanShiftFiltering(src_dst,tmp_f,15,20);
+
+
+
+	cv::medianBlur(src_dst, tmp_f, 3);
+	cv::medianBlur(src_dst, tmp_f, 5);
+	//cv::bilateralFilter(src_dst, tmp_f, -1, 15, 7);
+	//cv::bilateralFilter(src_dst, tmp_f, 0, 15, 7);
+
 	src_dst = tmp_f;
 #endif
 }
@@ -78,38 +180,79 @@ void Segmentation::bilateral_filter(bool gpu, cv::Mat& src_dst) {
 /*
  * computes a Gaussian pyramid representation for the input image
  */
-void Segmentation::pyramid(bool gpu, cv::Mat& src, int scales, int starting_scale) {
+void Segmentation::pyramid(bool gpu, cv::Mat& src, int scales,
+		int starting_scale) {
 
-	// if starting_scale = 0 we start the pyramid by upsampling the original image
-	if(starting_scale==0){
+
+	//fourier(src);
+	// first we set as starting point the upsampled image
+	if (starting_scale == 0) {
+		Mat tmp = src.clone();
 		cv::pyrUp(src, src, cv::Size(src.cols * 2, src.rows * 2));
-		//add scale 0
-		//bilateral filtering
-		Mat img_scale_0 = src.clone();
 		image_pyramid_.push_back(src);
-		bilateral_filter(gpu, img_scale_0);
-		bilateral_filtered_pyramid_.push_back(img_scale_0);
-	}
-	Mat src_copy = src;
+		bilateral_filter(gpu, src);
+		bilateral_filtered_pyramid_.push_back(src);
+		src = tmp;
+		starting_scale = 1;
+	} else {
+		// we now skip as many scales as necessary
+		// if the starting_scale is 1 it will not enter in this loop
+		// /nor in the condition above and the first image in the pyramid will be the original one
+		for (int i = 1; i < starting_scale; i++) {
+			cv::pyrDown(src, src, cv::Size(src.cols / 2, src.rows / 2));
+		}
 
-	// if starting_scale = 1 then we start the pyramid with the original image
-	// otherwise, we skip scales until we reach the starting_scale
-	for(int i=1;i<starting_scale;i++){
-		cv::pyrDown(src_copy, src_copy,
-						cv::Size(src_copy.cols / 2, src_copy.rows / 2));
 	}
 
+	// iterate starting at the starting_scale until the number of scales is reached
 	for (int i = starting_scale; i < scales; i++) {
-		Mat img_scale_i;
-
-		cv::pyrDown(src_copy, img_scale_i,
-				cv::Size(src_copy.cols / 2, src_copy.rows / 2));
-
-		src_copy = img_scale_i.clone();
+		Mat img_scale_i = src;
 		image_pyramid_.push_back(img_scale_i);
 		bilateral_filter(gpu, img_scale_i);
 		bilateral_filtered_pyramid_.push_back(img_scale_i);
+
+		cv::pyrDown(src, src, cv::Size(src.cols / 2, src.rows / 2));
+
 	}
+
+//	// if starting_scale = 0 we start the pyramid by upsampling the original image
+//	if(starting_scale==0){
+//		cv::pyrUp(src, src, cv::Size(src.cols * 2, src.rows * 2));
+//		//add scale 0
+//		//bilateral filtering
+//		Mat img_scale_0 = src.clone();
+//		image_pyramid_.push_back(src);
+//		bilateral_filter(gpu, img_scale_0);
+//		bilateral_filtered_pyramid_.push_back(img_scale_0);
+//	}
+//	else if(starting_scale==1){
+//		Mat img_scale_1 = src.clone();
+//		image_pyramid_.push_back(src);
+//		bilateral_filter(gpu, img_scale_1);
+//		bilateral_filtered_pyramid_.push_back(img_scale_1);
+//
+//	}
+//	Mat src_copy = src;
+//
+//	// if starting_scale = 1 then we start the pyramid with the original image
+//	// otherwise, we skip scales until we reach the starting_scale
+//	for(int i=1;i<starting_scale;i++){
+//		cv::pyrDown(src_copy, src_copy,
+//						cv::Size(src_copy.cols / 2, src_copy.rows / 2));
+//	}
+//
+//
+//	for (int i = starting_scale; i < (scales-1); i++) {
+//		Mat img_scale_i;
+//
+//		cv::pyrDown(src_copy, img_scale_i,
+//				cv::Size(src_copy.cols / 2, src_copy.rows / 2));
+//
+//		src_copy = img_scale_i.clone();
+//		image_pyramid_.push_back(img_scale_i);
+//		bilateral_filter(gpu, img_scale_i);
+//		bilateral_filtered_pyramid_.push_back(img_scale_i);
+//	}
 }
 
 void Segmentation::segment_pyramid(double thres) {
@@ -124,7 +267,7 @@ void Segmentation::segment_pyramid(double thres) {
 			//cout <<"processing scale "<<i<<endl;
 			scharr_segment(bilateral_filtered_pyramid_[i], contours_mat,
 					gradient, gray_gradient, thres, i, true);
-			output_segments_pyramid_[i]=contours_mat;
+			output_segments_pyramid_[i] = contours_mat;
 			//thres -= 0.01;
 
 			if (DEBUG) {
@@ -146,7 +289,7 @@ void Segmentation::segment_pyramid(double thres) {
 			Mat contours_mat, gradient, gray_gradient;
 			scharr_segment(image_pyramid_[i], contours_mat, gradient,
 					gray_gradient, thres, i, true);
-			output_segments_pyramid_[i]=contours_mat;
+			output_segments_pyramid_[i] = contours_mat;
 
 			if (DEBUG) {
 				string name("image pyramid - scale ");
@@ -320,38 +463,6 @@ void Segmentation::segment_contours(const cv::Mat& grayGradient,
 		segments_pyramid_[scale].push_back(seg);
 
 	}
-//	imshow("without parents",paint);
-//	for (int idx = 0; idx < contours.size(); idx++) {
-//
-//		Mat mask = Mat::zeros(grayGradient.rows, grayGradient.cols, CV_8UC1);
-//		Mat segment = Mat::zeros(grayGradient.rows, grayGradient.cols, CV_8UC3);
-//
-//		//if it has parents we skip it at first
-//		if ( hierarchy[idx][3] != -1 ) {
-//			continue;
-//		}
-//
-//		if (contours[idx].size() < MIN_SIZE_PER_LEVEL)
-//			continue;
-//
-//		//figure out the avg colour of this segment
-//
-//		cv::Scalar colour, avg_colour;
-//		if (rnd_colours)
-//			colour = Scalar(rand() & 255, rand() & 255, rand() & 255);
-//		else
-//			colour = mean(original, mask);
-//
-//		cv::drawContours(paint, contours, idx, colour, FILLED, 8, hierarchy);
-//		//cv::drawContours(paint, contours, idx, colour, 6, 8, hierarchy);
-//		for (Point p : contours[idx]) {
-//			paint.at<Vec3b>(p.y, p.x) = Vec3b(colour[0], colour[1], colour[2]);
-//		}
-//
-//	}
-//	imshow("with parents",paint);
-
-
 }
 
 void Segmentation::nms(Mat& gradx, Mat& grady, Mat& gradient) {
@@ -412,11 +523,16 @@ void Segmentation::canny_segment(cv::Mat& src, cv::Mat& contours_mat,
 
 void Segmentation::thin_contours(cv::Mat& grayGradient) {
 
+	bool guoHall = false;
+	Thinner thinner;
 	Mat copy = grayGradient < 1.;
 
 	copy.convertTo(copy, CV_8UC1);
 	//imshow("gradient before thining", copy);
-	thinning(copy, copy);
+	if (guoHall)
+		thinner.thinningGuoHall(copy);
+	else
+		thinner.thinning(copy, copy);
 	//imshow("gradient after thining", copy);
 	//waitKey(0);
 	copy.convertTo(grayGradient, CV_32FC1);
@@ -569,25 +685,26 @@ void Segmentation::edge_tests(Mat& src, double gradient_threshold) {
 
 }
 
-
 /*
  * maps the segments of a given scale so that they can be retrieved
  * by get_segment_at_scale
  */
-void Segmentation::map_segments(int scale){
-	assert(scale >= 0 && scale <actual_scales_);
-	component_id = cv::Mat::zeros(output_segments_pyramid_[scale].size(), CV_16UC1);
+void Segmentation::map_segments(int scale) {
+
+	assert(scale >= 0 && scale <= actual_scales_);
+	component_id = cv::Mat::zeros(output_segments_pyramid_[scale].size(),
+	CV_16UC1);
 	vector<Segment*>& segments = segments_pyramid_[scale];
 	//iterate over the segments
 	unsigned int id = 2;
-	for(Segment* seg: segments){
+	for (Segment* seg : segments) {
 		//iterate over their points
 		seg->computeFeatures();
-		Mat idMat = (seg->getBinaryMat()/255)*id;
-		idMat.convertTo(idMat,CV_16UC1);
+		Mat idMat = (seg->getBinaryMat() / 255) * id;
+		idMat.convertTo(idMat, CV_16UC1);
 //		imshow("seg->getBinaryMat()",seg->getBinaryMat());
 //		waitKey(0);
-		idMat.copyTo(component_id,seg->getBinaryMat());
+		idMat.copyTo(component_id, seg->getBinaryMat());
 		//cout <<component_id(seg->getBoundRect())<<endl;
 		//cout <<" added segment #"<<id<<endl;
 		mapSegments[id] = seg;
@@ -599,7 +716,39 @@ void Segmentation::map_segments(int scale){
 	//waitKey(0);
 }
 
+void Segmentation::laplacian(Mat& src_gray) {
+
+	Mat dst;
+	int kernel_size = 7;
+	int scale = 1;
+	int delta = 0;
+	int ddepth = CV_64FC1;
+	/// Apply Laplace function
+	Mat abs_dst;
+
+	Laplacian(src_gray, dst, ddepth, kernel_size, scale, delta, BORDER_DEFAULT);
+	convertScaleAbs(dst, abs_dst);
+	imshow("src_gray", src_gray);
+	imshow("laplacian", abs_dst);
+	src_gray = abs_dst;
+	waitKey(0);
+}
+
+void Segmentation::derivative(Mat& src) {
+	Mat tmp = src.clone();
+	tmp = tmp * 255.;
+	tmp.convertTo(tmp, CV_8UC3);
+	Mat median;
+	medianBlur(tmp, src, 7);
+//	imshow("src",src);
+//	imshow("median gradient",median);
+//	waitKey(0);
+}
+
 /*
+ * Segments the input image by finding the components delimited by the
+ * Scharr operator.
+ *
  * src: input image  CV_8UC3 [0..255]
  * contours_mat: image with the segments CV_8UC3 [0..255]
  * gradient: Mat with the edges CV_64FC3 [0 ..1]
@@ -632,152 +781,152 @@ void Segmentation::scharr_segment(cv::Mat& src, cv::Mat& contours_mat,
 	gradient -= min;
 	gradient *= 1.0 / (max - min);
 	cv::minMaxLoc(gradient, &min, &max);
-	//cout << "min max " << min << " " << max << endl;
 
 	//segmentation
 	std::vector<cv::Mat> gradients;
 	cv::split(gradient, gradients);
+	//imwrite("/home/martin/Research/gradient.png",gradient*255);
 
 	grayGradient = (gradients[0] + gradients[1] + gradients[2]) / 3.;
-	//imshow("gradient before thining", grayGradient);
+
+	//test_otsu_threshold(grayGradient);
+
+	cout << "Segmentation::scharr_segment scale=" << scale << endl;
+
+//	Mat invertedGradient = grayGradient > gradient_threshold;
+//	imshow("grayGradient",invertedGradient);
+//	Mat gradientCopy = invertedGradient.clone();
+//	Thinner thinner;
+//	thinner.thinningGuoHall(gradientCopy);
+//	imshow("gradient after thinning",gradientCopy);
+//	waitKey(0);
 
 	grayGradient = grayGradient < gradient_threshold;
+	//thin_contours(grayGradient);
+	thresholded_gradients_pyramid_.push_back(grayGradient);
+	Mat tmp = gradient.clone(), debugGradient, mask_grad = grayGradient < 1.;
+
+	tmp.copyTo(debugGradient, mask_grad);
+//	imshow("mask_grad",mask_grad);
+//	imshow("tmp",tmp);
+//	imshow("debugGradient",debugGradient);
+//	waitKey(0);
+
+	gradients_pyramid_.push_back(debugGradient * 255.);
+
+	//segment_contours_4_conn(src, grayGradient,contours_mat, scale);
+	segment_contours(grayGradient, src, contours_mat, scale, rnd_colours);
 
 //	cv::erode(grayGradient,grayGradient,Mat());
 //	cv::dilate(grayGradient,grayGradient,Mat());
 //	cv::dilate(grayGradient,grayGradient,Mat());
 
-//	imshow("grayGradient before",grayGradient);
-//	thin_contours(grayGradient);
-//	imshow("grayGradient after",grayGradient);
-//	waitKey(0);
 	// grayGradient CV_64F [0..1]
 
-	segment_contours(grayGradient, src, contours_mat, scale, rnd_colours);
-
 }
 
-/**
-
- */
-
-/**
- * Perform one thinning iteration.
- * Normally you wouldn't call this function directly from your code.
- *
- * Parameters:
- * 		im    Binary image with range = [0,1]
- * 		iter  0=even, 1=odd
- *
- *
- * Code for thinning a binary image using Zhang-Suen algorithm.
- *
- * Author:  Nash (nash [at] opencv-code [dot] com)
- * Website: http://opencv-code.com
- *
- */
-void Segmentation::thinningIteration(cv::Mat& img, int iter) {
-	CV_Assert(img.channels() == 1);
-	CV_Assert(img.depth() != sizeof(uchar));
-	CV_Assert(img.rows > 3 && img.cols > 3);
-
-	cv::Mat marker = cv::Mat::zeros(img.size(), CV_8UC1);
-
-	int nRows = img.rows;
-	int nCols = img.cols;
-
-	if (img.isContinuous()) {
-		nCols *= nRows;
-		nRows = 1;
-	}
-
-	int x, y;
-	uchar *pAbove;
-	uchar *pCurr;
-	uchar *pBelow;
-	uchar *nw, *no, *ne;    // north (pAbove)
-	uchar *we, *me, *ea;
-	uchar *sw, *so, *se;    // south (pBelow)
-
-	uchar *pDst;
-
-	// initialize row pointers
-	pAbove = NULL;
-	pCurr = img.ptr<uchar>(0);
-	pBelow = img.ptr<uchar>(1);
-
-	for (y = 1; y < img.rows - 1; ++y) {
-		// shift the rows up by one
-		pAbove = pCurr;
-		pCurr = pBelow;
-		pBelow = img.ptr<uchar>(y + 1);
-
-		pDst = marker.ptr<uchar>(y);
-
-		// initialize col pointers
-		no = &(pAbove[0]);
-		ne = &(pAbove[1]);
-		me = &(pCurr[0]);
-		ea = &(pCurr[1]);
-		so = &(pBelow[0]);
-		se = &(pBelow[1]);
-
-		for (x = 1; x < img.cols - 1; ++x) {
-			// shift col pointers left by one (scan left to right)
-			nw = no;
-			no = ne;
-			ne = &(pAbove[x + 1]);
-			we = me;
-			me = ea;
-			ea = &(pCurr[x + 1]);
-			sw = so;
-			so = se;
-			se = &(pBelow[x + 1]);
-
-			int A = (*no == 0 && *ne == 1) + (*ne == 0 && *ea == 1)
-					+ (*ea == 0 && *se == 1) + (*se == 0 && *so == 1)
-					+ (*so == 0 && *sw == 1) + (*sw == 0 && *we == 1)
-					+ (*we == 0 && *nw == 1) + (*nw == 0 && *no == 1);
-			int B = *no + *ne + *ea + *se + *so + *sw + *we + *nw;
-			int m1 = iter == 0 ? (*no * *ea * *so) : (*no * *ea * *we);
-			int m2 = iter == 0 ? (*ea * *so * *we) : (*no * *so * *we);
-
-			if (A == 1 && (B >= 2 && B <= 6) && m1 == 0 && m2 == 0)
-				pDst[x] = 1;
-		}
-	}
-
-	img &= ~marker;
+void Segmentation::test_adaptive_threshold(Mat& grayGradient) {
+	Mat testGrad = grayGradient.clone();
+	testGrad *= 255.;
+	testGrad.convertTo(testGrad, CV_8UC1);
+	Mat testadaptive;
+	adaptiveThreshold(testGrad, testadaptive, 255, ADAPTIVE_THRESH_MEAN_C,
+			CV_THRESH_BINARY, 17, 0);
+	imshow("testGrad", testGrad);
+	imshow("adaptiveThreshold", testadaptive);
+	waitKey(0);
 }
 
-/**
- * Function for thinning the given binary image
+void Segmentation::test_otsu_threshold(Mat& grayGradient) {
+	Mat testGrad = grayGradient.clone();
+	testGrad *= 255.;
+	testGrad.convertTo(testGrad, CV_8UC1);
+	Mat otsuMat;
+	cv::threshold(testGrad, otsuMat, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
+	imshow("testGrad", testGrad);
+	imshow("otsuMat", otsuMat);
+	waitKey(0);
+}
+
+/*
+ * Finds the connected components using the floodFill function.
+ * Here there is no minimum size required (1 pixel is enough) for the
+ * connected components to be found by the floodFill function.
  *
- * Parameters:
- * 		src  The source image, binary with range = [0,255]
- * 		dst  The destination image
  */
-void Segmentation::thinning(const cv::Mat& src, cv::Mat& dst) {
-	dst = src.clone();
-	dst /= 255;         // convert to binary image
+void Segmentation::segment_contours_4_conn(cv::Mat& src, Mat& grayGradient,
+		Mat& segmentation, int scale) {
+	Mat gradientCopy = grayGradient.clone();
+	//thin_contours(gradientCopy);
+	gradientCopy = gradientCopy < 1.;
 
-	cv::Mat prev = cv::Mat::zeros(dst.size(), CV_8UC1);
-	cv::Mat diff;
+	//locate a maximum (contours are in black)
+	double min = 0., max = 0.;
+	Point2i minP, maxP;
+	Mat region = gradientCopy.clone();
 
-//	do {
-//		thinningIteration(dst, 0);
-//		thinningIteration(dst, 1);
-//		cv::absdiff(dst, prev, diff);
-//		dst.copyTo(prev);
-//	} while (cv::countNonZero(diff) > 0);
-//
-	for (int iter = 0; iter < 1; iter++) {
-		thinningIteration(dst, 0);
-		thinningIteration(dst, 1);
+	//has ones where maxima should be located
+	cv::Mat det_mask = cv::Mat::ones(region.rows, region.cols, CV_8UC1);
+	segmentation = cv::Mat::zeros(region.rows, region.cols, CV_8UC3);
+
+	while (min == 0) {
+		minMaxLoc(region, &min, &max, &minP, &maxP, det_mask);
+
+		//use the maximum as a seed for flood filling
+		Point seed = minP;
+		//cout <<"seed at :x,y="<<seed.x<<" "<<seed.y<<endl;
+
+		int newMaskVal = 125;
+		int ffillMode = 1;
+		int connectivity = 4;
+		int flag = connectivity + (newMaskVal << 8) + FLOODFILL_FIXED_RANGE
+				+ FLOODFILL_MASK_ONLY;
+
+		int value = max;
+		int low = 1;
+		int up = 1;
+		cv::Mat mask = cv::Mat::zeros(region.rows + 2, region.cols + 2,
+		CV_8UC1);
+		Rect rect(1, 1, region.cols, region.rows);
+		floodFill(region, mask, seed, 125, 0, Scalar(low), Scalar(up), flag);
+
+		//add the connected component to the original mat
+
+		//imshow("Region Growing",region);
+		det_mask.setTo(Scalar(0), mask(rect));
+		Scalar colour(rand() & 255, rand() & 255, rand() & 255);
+		segmentation.setTo(colour, mask(rect));
+
+		//find the contour
+		vector<vector<Point> > contours;
+		vector<Vec4i> hierarchy;
+		findContours(mask(rect), contours, hierarchy, RETR_CCOMP,
+				CV_CHAIN_APPROX_NONE, Point(0, 0));
+		if (contours.size() == 0)
+			continue;
+		//cout <<"contours.size()="<<contours.size()<<endl;
+		//imshow("mask(rect)",mask(rect));
+		//waitKey(0);
+		int segment_size = contourArea(contours[0]);
+
+		//find the minimum bounding rectangle
+		Mat pointsMat;
+		cv::findNonZero(mask(rect), pointsMat);
+		Rect bounding_rect = boundingRect(pointsMat);
+		//cout << "bounding_rect="<<bounding_rect<<endl;
+		//cout << "src.size()="<<src.size()<<endl;
+		Mat sub_mat_original = src(bounding_rect);
+		Mat sub_mat_segment = segmentation(bounding_rect);
+		Mat binary_original_ = mask.clone();// == Mat::zeros(original.rows,original.cols,CV_8UC1)
+
+		Segment *seg = new Segment(sub_mat_original, sub_mat_segment,
+				binary_original_, contours[0], bounding_rect, segment_size,
+				Vec3b(colour[0], colour[1], colour[2]));
+		//cout <<"segments_pyramid_.size()="<<segments_pyramid_.size()<<endl;
+		segments_pyramid_[scale].push_back(seg);
 
 	}
 
-	dst *= 255;
 }
 
 void Segmentation::intensity_histogram(Mat& src, Mat& dst) {
@@ -842,22 +991,32 @@ void Segmentation::intensity_histogram(Mat& src, Mat& dst) {
 
 }
 
-void Segmentation::print_results(Mat& dst, int last_n_scales){
+void Segmentation::print_results(Mat& dst, int last_n_scales) {
 
-	dst  = Mat::zeros(original_img_.rows, original_img_.cols * (last_n_scales+1), CV_8UC3);
-	cout << "> showing # of scales =" <<last_n_scales << endl;
-	vector<Rect> rects;
+	if (last_n_scales == -1)
+		last_n_scales = actual_scales_;
+	//first row for the original image and the segmentations
+	//second row for the thresholded gradients
+	dst = Mat::zeros(original_img_.rows * 3,
+			original_img_.cols * (last_n_scales + 1), CV_8UC3);
+	cout << "> showing # of scales =" << last_n_scales << endl;
+	vector<Rect> rects, rects_gradients, rects_th_gradients;
 	Rect rect_orig(0, 0, original_img_.cols, original_img_.rows);
-	for(int i=0;i<last_n_scales;i++){
-		Rect rect_level_i(original_img_.cols*(i+1), 0, original_img_.cols, original_img_.rows);
+	for (int i = 0; i < last_n_scales; i++) {
+		Rect rect_level_i(original_img_.cols * (i + 1), 0, original_img_.cols,
+				original_img_.rows);
+		Rect rect_grad_i(original_img_.cols * (i + 1), original_img_.rows,
+				original_img_.cols, original_img_.rows);
+		Rect rect_th_grad_i(original_img_.cols * (i + 1),
+				original_img_.rows * 2, original_img_.cols, original_img_.rows);
 		rects.push_back(rect_level_i);
+		rects_gradients.push_back(rect_grad_i);
+		rects_th_gradients.push_back(rect_th_grad_i);
 	}
-
 
 //	Rect rect_level_0(original_img.cols, 0, original_img.cols, original_img.rows);
 //	Rect rect_level_1(original_img.cols*2, 0, original_img.cols, original_img.rows);
 //	Rect rect_level_2(original_img.cols*3, 0, original_img.cols, original_img.rows);
-
 
 	//img0.convertTo(img0, CV_32FC3);
 	original_img_.copyTo(dst(rect_orig));
@@ -869,9 +1028,22 @@ void Segmentation::print_results(Mat& dst, int last_n_scales){
 //
 //	gradient*= 255.;
 
-	for(int i=0;i<last_n_scales;i++){
+	for (int i = 0; i < last_n_scales; i++) {
 		Mat tmp_out;
-		resize(output_segments_pyramid_[output_segments_pyramid_.size()-1-i],tmp_out,original_img_.size());
-		tmp_out.copyTo(dst(rects[last_n_scales-1-i]));
+		resize(
+				output_segments_pyramid_[output_segments_pyramid_.size() - 1 - i],
+				tmp_out, original_img_.size());
+		tmp_out.copyTo(dst(rects[last_n_scales - 1 - i]));
+
+		resize(
+				thresholded_gradients_pyramid_[thresholded_gradients_pyramid_.size()
+						- 1 - i], tmp_out, original_img_.size());
+		cvtColor(tmp_out, tmp_out, CV_GRAY2BGR);
+		tmp_out.copyTo(dst(rects_th_gradients[last_n_scales - 1 - i]));
+
+		resize(gradients_pyramid_[output_segments_pyramid_.size() - 1 - i],
+				tmp_out, original_img_.size());
+		tmp_out.copyTo(dst(rects_gradients[last_n_scales - 1 - i]));
+
 	}
 }

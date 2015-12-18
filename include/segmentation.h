@@ -28,7 +28,7 @@
 
 
 #define DEBUG false
-#define MIN_SIZE_PER_LEVEL 5//29
+#define MIN_SIZE_PER_LEVEL 1 //29
 
 
 
@@ -37,6 +37,9 @@ public:
 	Segmentation();
 	Segmentation(cv::Mat& src, bool gpu, int scales, int starting_scale);
 	virtual ~Segmentation();
+
+	void init(cv::Mat& src, bool gpu, int scales,
+			int starting_scale);
 
 	void pyramid(bool gpu,cv::Mat& src,int scales, int starting_scale);
 
@@ -51,9 +54,12 @@ public:
 	void scharr_segment(cv::Mat& src,
 			cv::Mat& contours_mat,cv::Mat& gradient,cv::Mat& grayGradient, double gradient_threshold,int scale, bool rnd_colours);
 
+	void segment_contours_4_conn(cv::Mat& src, Mat& grayGradient, Mat& segmentation, int scale);
+
 	void intensity_histogram( cv::Mat& src,cv::Mat& dst);
 
-	void thinning(const cv::Mat& src, cv::Mat& dst);
+
+
 
 	void show_pyramids();
 
@@ -82,6 +88,17 @@ public:
 	void print_results(Mat& dst, int last_n_scales);
 
 private:
+
+	void fourier(Mat& src);
+
+	void test_otsu_threshold(Mat& grayGradient);
+
+	void derivative(Mat& src);
+
+	void laplacian(Mat& src_gray);
+
+	void test_adaptive_threshold(Mat& grayGradient);
+
 	void segment_contours(const cv::Mat& src, cv::Mat& draw,cv::Mat& paint,int scale, bool rnd_colours);
 
 	void thinningIteration(cv::Mat& img, int iter);
@@ -103,6 +120,7 @@ private:
 	cv::Mat original_img_;
 	vector<cv::Mat> image_pyramid_, bilateral_filtered_pyramid_, output_segments_pyramid_;
 	vector<cv::Mat> scharr_pyramid_, bilateral_scharr_pyramid_;
+	vector<cv::Mat> gradients_pyramid_,thresholded_gradients_pyramid_;
 
 	vector< vector <Segment*> > segments_pyramid_;
 

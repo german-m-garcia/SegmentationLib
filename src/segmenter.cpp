@@ -32,11 +32,6 @@ int main(int argc, char** argv) {
 	Segmentation segmentation(original_img,gpu,scales,starting_scale);
 	segmentation.segment_pyramid(threshold);
 	segmentation.map_segments(0);
-	Segment* seg = segmentation.get_segment_at_fast(40,40);
-	if(seg != nullptr){
-		imshow("seg",seg->getBinaryMat());
-		waitKey(0);
-	}
 
 
 	utils.tock(text);
@@ -55,12 +50,12 @@ int main(int argc, char** argv) {
 
 
 	Mat outMat;
-	int show_n_last_scales = 1;
+	int show_n_last_scales = -1;//(scales-starting_scale);
 	segmentation.print_results(outMat,show_n_last_scales);
 	imwrite(output_path,outMat);
 
-	imshow("outMat",outMat);
-	waitKey(0);
+	//imshow("outMat",outMat);
+	//waitKey(0);
 
 //	gradient*= 255.;
 //	imwrite(outputPath,gradient);
