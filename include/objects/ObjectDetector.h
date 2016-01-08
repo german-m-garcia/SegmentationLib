@@ -8,12 +8,16 @@
 #ifndef INCLUDE_OBJECTS_OBJECTDETECTOR_H_
 #define INCLUDE_OBJECTS_OBJECTDETECTOR_H_
 
+#include "MRSMapWrap.h"
 #include "segment.h"
 #include "svm_wrapper.h"
 #include <vector>
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/gpu/kinfu/kinfu.h>
+
+
+using namespace mrsmap;
 
 
 //using namespace std;
@@ -25,9 +29,13 @@ class ObjectDetector {
 public:
 	ObjectDetector();
 	ObjectDetector(int mode,string model_path);
+	ObjectDetector(int mode,string model_path, string object_name);
 	virtual ~ObjectDetector();
 
-	 void add_training_data(std::vector<Segment*>& foreground_segments,
+
+	void add_selected_segments(Mat&img, Mat& depth_float,vector<Segment*>& fg_segments,vector<Segment*>& bg_segments);
+
+	void add_training_data(std::vector<Segment*>& foreground_segments,
 			 std::vector<Segment*>& background_segments);
 
 	 void add_training_data(std::vector<Segment*>& foreground_segments,
@@ -38,7 +46,11 @@ public:
 	 void unify_detections(Mat& mask);
 
 
+	 bool test_data(std::vector<Segment*>& test_segments,Mat& original_img, Mat& original_depth,vector<Mat>& masks, Mat& debug);
+
 	 bool test_data(std::vector<Segment*>& test_segments,Mat& original_img, Mat& original_depth,vector<Mat>& masks, Mat& debug, vector<Point3d>& slc_position, vector<Point3d>& slc_orientation);
+
+	 void draw_contours_detections(Mat& src,Mat& mask, Mat& debug);
 
 	 void find_slc_bounding_box(Mat& detections, vector<Rect>& rect, vector<Mat>& masks);
 
@@ -73,6 +85,12 @@ private:
 	const static int rows = 1234, cols = 1624;
 
 	float fx = 1368.30, fy = 1368.3, cx = cols/2., cy = rows/2.;
+
+	double threshold_positive_class;
+
+	std::string object_name_;
+
+	MRSMapWrap mrsmap;
 
 
 	void display_cloud(PlainCloudptr& cloud);

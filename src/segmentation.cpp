@@ -73,6 +73,10 @@ Segmentation::~Segmentation() {
 
 }
 
+Size Segmentation::getSize(int scale){
+	return image_pyramid_[scale].size();
+}
+
 void Segmentation::show_pyramids() {
 	for (unsigned int i = 0; i < bilateral_filtered_pyramid_.size(); i++) {
 		string name("bilateral pyramid - scale ");

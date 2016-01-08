@@ -172,7 +172,7 @@ int Utils::parse_args(int argc, char **argv, double& thres, int& scales,
 
 int Utils::parse_args(int argc, char **argv, double& thres, int& scales,
 		int& starting_scale, int& propagation_scale, int& gpu, string& img_path,
-		string& output_path, string& svm_path, string& cloud_path) {
+		string& output_path, string& svm_path, string& depth_path) {
 
 	/** Define and parse the program options
 	 */
@@ -194,7 +194,7 @@ int Utils::parse_args(int argc, char **argv, double& thres, int& scales,
 
 	("image,i", po::value<string>(&img_path), "Path to the input image")
 
-	("clouds,c", po::value<string>(&cloud_path), "Path to the input pcls")
+	("clouds,c", po::value<string>(&depth_path), "Path to the input pcls")
 
 	("svm,v", po::value<string>(&svm_path), "Path to the SVM model")
 
@@ -346,6 +346,65 @@ void Utils::cluster(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud) {
 	}
 
 	return;
+}
+
+void Utils::cropped_pcl_from_segments(Mat& img, Mat& depth,vector<Segment*>&segments,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,Mat& tmp_img,Mat& tmp_depth){
+
+	Size size_segments = segments[0]->getBinaryMat().size();
+	cout <<" target size="<<size_segments<<endl;
+	cout <<" current size="<<img.size()<<endl;
+//	pyrDown(img,img2,cv::Size(img.cols / 2, img.rows / 2));
+//	pyrDown(depth,depth2,cv::Size(img.cols / 2, img.rows / 2));
+
+	//depth2 *= 0.001;
+	Mat cropped_img,cropped_depth;
+	tmp_img = Mat::zeros(img.rows, img.cols, CV_8UC3);
+	tmp_depth = Mat::zeros(img.rows, img.cols, CV_32FC1);
+
+	Mat mask = Mat::zeros(size_segments, CV_8UC1);
+	for (Segment * seg : segments) {
+		//mask(seg->getBoundRect()) += seg->getRandomColourMat();
+		//imshow("seg->getRandomColourMat()",seg->getRandomColourMat());
+		//imshow("seg->getBinaryMat()",seg->getBinaryMat());
+		//waitKey(0);
+		//cout <<"mask.size()="<<mask.size()<<" seg->getBinaryMat().size()="<<seg->getBinaryMat().size()<<endl;
+		mask += seg->getBinaryMat();
+		//imshow("seg",seg->getMatOriginalColour());
+	}
+	resize(mask,mask,img.size());
+
+
+	Mat pointsMat;
+	cv::findNonZero(mask,pointsMat);
+	Rect minRect=boundingRect(pointsMat);
+//	imshow("mask", mask);
+//	imshow("mask cropped", mask(minRect));
+//	waitKey(0);
+	//cout <<"mask.size()="<<mask.size()<<" img2.size()="<<img2.size()<<endl;
+	//cvtColor(mask,mask,CV_BGR2GRAY);
+
+	img.copyTo(tmp_img, mask);
+	depth.copyTo(tmp_depth, mask);
+
+
+
+	Utils utils;
+	cropped_img = tmp_img(minRect);
+	cropped_depth = tmp_depth(minRect);
+	//imshow("mask", mask);
+	//imshow("cropped_img", cropped_img);
+	//waitKey(0);
+	int cx = img.cols/2;
+	int cy = img.rows/2;
+	utils.image_to_pcl(cropped_img,cropped_depth , cloud,cx,cy,minRect);
+//	pcl::PointCloud<pcl::PointXYZRGB>::Ptr pruned_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+//	utils.prune_pcl(cloud, pruned_cloud);
+//	cout <<"original cloud ->points.size()="<<cloud->points.size()<<endl;
+//	cout <<"pruned_cloud->points.size()="<<pruned_cloud->points.size()<<endl;
+//	pcl::visualization::PCLVisualizer viewer("3d Viewer");
+//	viewer.setBackgroundColor(0, 0, 0);
+//	viewer.addPointCloud < pcl::PointXYZRGB > (pruned_cloud, "sample cloud");
+//	viewer.spin();
 }
 
 void Utils::compute_normals(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,

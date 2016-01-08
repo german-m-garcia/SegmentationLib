@@ -5,8 +5,8 @@
  *      Author: martin
  */
 
-#include <pcl/registration/icp.h>
 #include "objects/ObjectDetector.h"
+#include <pcl/registration/icp.h>
 #include <pcl/visualization/pcl_visualizer.h>
 
 /*
@@ -24,23 +24,31 @@
 //#include "cuda_runtime.h"
 #include "utils.h"
 
-using namespace pcl;
-using namespace pcl::gpu;
+
 using namespace Eigen;
 
-ObjectDetector::ObjectDetector() {
+ObjectDetector::ObjectDetector():threshold_positive_class(0.2),object_name_("") {
 	// TODO Auto-generated constructor stub
 
 }
 
 ObjectDetector::ObjectDetector(int mode, std::string model_path) :
 		svm(model_path), model_path_(model_path), train_(mode == TRAIN_MODE), test_(
-				mode == TEST_MODE) {
+				mode == TEST_MODE),threshold_positive_class(0.2),object_name_("") {
 	if (test_) {
 		svm.load_model();
 	}
 
 }
+
+ObjectDetector::ObjectDetector(int mode,string model_path, string object_name) :
+				svm(model_path), model_path_(model_path), train_(mode == TRAIN_MODE), test_(
+						mode == TEST_MODE),threshold_positive_class(0.2),object_name_(object_name) {
+			if (test_) {
+				svm.load_model();
+			}
+
+		}
 
 void ObjectDetector::train() {
 	svm.trainSVM();
@@ -86,6 +94,86 @@ void ObjectDetector::find_slc_bounding_box(Mat& src, vector<Rect>& rects, vector
 
 }
 
+
+/*
+ * !brief The function should be called for every frame for which we want
+ * to add foreground and background segments to the model
+ * The point cloud of the object is computed and added to the pcl_clouds vector
+ *
+ */
+void ObjectDetector::add_selected_segments(Mat&img, Mat& depth_float,vector<Segment*>& fg_segments,vector<Segment*>& bg_segments){
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+	pcl::PointCloud<pcl::Normal>::Ptr normals;
+
+	Utils utils;
+	utils.image_to_pcl(img,depth_float,pcl_cloud);
+	utils.compute_integral_normals(pcl_cloud, normals);
+
+
+	for(Segment* seg: fg_segments){
+		seg->add_precomputed_pcl(pcl_cloud, normals);
+		seg->computeFeatures();
+	}
+	for(Segment* seg: bg_segments){
+		seg->add_precomputed_pcl(pcl_cloud, normals);
+		seg->computeFeatures();
+	}
+	//string text("OD cloud");
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cropped_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+	Mat tmp_img, tmp_depth;
+	utils.cropped_pcl_from_segments(img, depth_float,fg_segments, cropped_cloud, tmp_img, tmp_depth);
+	//cout <<"displaying cropped cloud"<<endl;
+	//utils.display_cloud(cropped_cloud,text);
+	point_clouds.push_back(cropped_cloud);
+	//mrsmap.initialize(cropped_cloud);
+
+	add_training_data(fg_segments, bg_segments,pcl_cloud,img,depth_float);
+}
+
+/*
+ * Mat src: the original image in colour
+ * Mat mask: the binary map with the detections
+ * Mat debug: the output image with the contour of each detection
+ * overlaid on the input image
+ *
+ */
+void ObjectDetector::draw_contours_detections(Mat& src,Mat& mask, Mat& debug) {
+
+
+	debug = src.clone();
+	vector<vector<Point> > contours;
+	vector<Vec4i> hierarchy;
+
+	/// Find contours
+	findContours(mask, contours, hierarchy, RETR_CCOMP, CV_CHAIN_APPROX_NONE,
+			Point(0, 0));
+	/// Draw contours
+	RNG rng(5345);
+	Mat drawing = Mat::zeros(mask.size(), CV_8UC3);
+	for (int i = 0; i < contours.size(); i++) {
+		//if it has parents we skip it at first
+		if (hierarchy[i][3] != -1) {
+			continue;
+		}
+		Scalar color = Scalar(rng.uniform(0, 255), rng.uniform(0, 255),
+				rng.uniform(0, 255));
+		//drawContours(drawing, contours, i, color, 2, 8, hierarchy, 0, Point());
+		Mat object = Mat::zeros(mask.size(), CV_8UC1);
+		int thickness = 5;
+		drawContours(debug, contours, i, color, thickness);
+
+		Rect boundRect = boundingRect( Mat(contours[i]) );
+		putText(debug,object_name_,Point(boundRect.x,boundRect.y), FONT_HERSHEY_SIMPLEX,0.4,color,1);
+
+	}
+
+	/// Show in a window
+	//namedWindow("Contours", CV_WINDOW_AUTOSIZE);
+	//imshow("Contours", drawing);
+	//waitKey(0);
+
+}
+
 void ObjectDetector::unify_detections(Mat& mask) {
 
 	for(int i=0;i<5;i++)
@@ -95,6 +183,81 @@ void ObjectDetector::unify_detections(Mat& mask) {
 		erode(mask, mask, Mat());
 //	imshow("unified mask",mask);
 //	waitKey(0);
+}
+
+
+bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
+		Mat& original_img, Mat& original_depth, vector<Mat>& masks, Mat& debug) {
+
+	/*
+	 * compute the point cloud
+	 */
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_cloud(
+			new pcl::PointCloud<pcl::PointXYZRGB>);
+	pcl::PointCloud<pcl::Normal>::Ptr normals;
+
+	Utils utils;
+	utils.image_to_pcl(original_img, original_depth, pcl_cloud);
+	//string text("cloud");
+	//utils.display_cloud(pcl_cloud,text);
+	utils.compute_integral_normals(pcl_cloud, normals);
+
+	for (Segment *seg : test_segments) {
+		seg->add_precomputed_pcl(pcl_cloud, normals);
+		//seg->addPcl(img_1,depth_float);
+		seg->computeFeatures();
+	}
+
+	debug = original_img.clone();
+
+	svm.testSVM(test_segments);
+	if (test_segments.size() == 0)
+		return false;
+	Mat ref = test_segments[0]->getBinaryMat();
+	Mat detections = Mat::zeros(ref.rows, ref.cols, CV_8UC3);
+	//cout <<" iterating segments"<<endl;
+	int ndetections = 0;
+	for (Segment *seg : test_segments) {
+
+		if (seg->getClassLabel() > threshold_positive_class) {
+			//cout <<" bounding rect="<<seg->getBoundRect()<<endl;
+			//cout <<"detections.size()="<<detections.size()<<endl;
+			//cout <<"detections(seg->getBoundRect()).size()="<<detections(seg->getBoundRect()).size()<< " seg->getRandomColourMat().size()= "<<seg->getRandomColourMat().size()<<endl;
+
+			//imshow("seg->getRandomColourMat()", seg->getRandomColourMat());
+			//waitKey(0);
+			detections(seg->getBoundRect()) += seg->getRandomColourMat();
+			ndetections++;
+		}
+	}
+	if (ndetections == 0)
+		return false;
+
+	//get the mask and minimum bounding rectangle
+	Rect rect;
+	Mat pointsMat;
+	resize(detections, detections, original_img.size());
+	Mat mask;
+	cvtColor(detections, mask, CV_RGB2GRAY);
+	mask = mask > 0;
+	unify_detections(mask);
+
+	draw_contours_detections(original_img,mask,debug);
+
+	//vector<Rect> rects;
+
+//	find_slc_bounding_box(mask, rects,masks);
+
+//	for(Mat mask: masks){
+//		//iterate for each blob in the mask
+//		cv::findNonZero(mask, pointsMat);
+//		rect = boundingRect(pointsMat);
+//		rectangle(debug, rect, Scalar(0, 0, 255), 3);
+//
+//	}
+
+	return true;
+
 }
 
 //Mat& ref = segmentation_1.getOutputSegmentsPyramid()[scale_for_propagation];
@@ -130,7 +293,7 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 	int ndetections = 0;
 	for (Segment *seg : test_segments) {
 
-		if (seg->getClassLabel() > 0.3) {
+		if (seg->getClassLabel() > threshold_positive_class) {
 			//cout <<" bounding rect="<<seg->getBoundRect()<<endl;
 			//cout <<"detections.size()="<<detections.size()<<endl;
 			//cout <<"detections(seg->getBoundRect()).size()="<<detections(seg->getBoundRect()).size()<< " seg->getRandomColourMat().size()= "<<seg->getRandomColourMat().size()<<endl;
@@ -335,8 +498,8 @@ void ObjectDetector::run_kinfu(float vsz) {
 //	const int max_color_integration_weight = 2;
 //	kinfu_.initColorIntegration(max_color_integration_weight);
 
-	KinfuTracker::DepthMap depth_device_;
-	KinfuTracker::View colors_device_;
+	pcl::gpu::KinfuTracker::DepthMap depth_device_;
+	pcl::gpu::KinfuTracker::View colors_device_;
 	for (unsigned int i = 0; i < frames_.size(); i++) {
 		Mat frame = frames_[i];
 		Mat depth = depths_[i];
@@ -345,7 +508,7 @@ void ObjectDetector::run_kinfu(float vsz) {
 		//waitKey(0);
 
 		//upload depth data to GPU
-		PtrStepSz<const unsigned short int> depth_;
+		pcl::gpu::PtrStepSz<const unsigned short int> depth_;
 		depth_.cols = depth.cols;
 		depth_.rows = depth.rows;
 		depth_.step = depth_.cols * sizeof(const unsigned short int);//depth_.elemSize();
@@ -364,10 +527,10 @@ void ObjectDetector::run_kinfu(float vsz) {
 
 	}
 
-	PointCloud<PointXYZ>::Ptr cloud_ptr_(new PointCloud<PointXYZ>);
-	DeviceArray<PointXYZ> cloud_buffer_device_;
+	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr_(new pcl::PointCloud<pcl::PointXYZ>);
+	pcl::gpu::DeviceArray<pcl::PointXYZ> cloud_buffer_device_;
 
-	DeviceArray<PointXYZ> extracted = kinfu_.volume().fetchCloud(
+	pcl::gpu::DeviceArray<pcl::PointXYZ> extracted = kinfu_.volume().fetchCloud(
 			cloud_buffer_device_);
 	extracted.download(cloud_ptr_->points);
 	cloud_ptr_->width = (int) cloud_ptr_->points.size();

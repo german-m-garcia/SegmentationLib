@@ -119,6 +119,10 @@ public:
 		return center_;
 	}
 
+	const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& getPclCloud() const {
+		return pcl_cloud_;
+	}
+
 	Mat visualFeatures_;
 	static const int NHISTOGRAMBINS = 32;//128; //256
 	static const int NUMBER_VISUAL_FEATS=NHISTOGRAMBINS*3;

@@ -23,6 +23,7 @@
 #include <pcl/features/vfh.h>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
+#include "segment.h"
 
 
 
@@ -56,6 +57,8 @@ public:
 	string get_file_name(const string& s);
 
 	void merge_two_bounding_rects(Rect& rec1,Rect& rec2, Rect& res);
+
+	void cropped_pcl_from_segments(Mat& img, Mat& depth,vector<Segment*>&segments,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,Mat& tmp_img,Mat& tmp_depth);
 
 	void compute_normals(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 			pcl::PointCloud<pcl::Normal>::Ptr& normals);

@@ -59,6 +59,7 @@ public:
 	void intensity_histogram( cv::Mat& src,cv::Mat& dst);
 
 
+	Size getSize(int scale);
 
 
 	void show_pyramids();

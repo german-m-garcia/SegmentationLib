@@ -102,6 +102,7 @@ void Segment::add_precomputed_pcl(
 
 	Utils utils;
 	Mat mask;
+
 	resize(binary_mat_, mask, Size(pcl_cloud->width, pcl_cloud->height));
 	utils.mask_to_pcl_indices(mask, pcl_indices_);
 	pcl_cloud_.reset(
