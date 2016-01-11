@@ -998,7 +998,7 @@ void Utils::image_to_pcl(Mat& img, Mat& depth,
 
 	// explicitly specify dsize=dst.size(); fx and fy will be computed from that.
 	if (img.size() != depth.size())
-		resize(depth, depth, img.size(), 0, 0, INTER_CUBIC);
+		resize(depth, depth, img.size(), 0, 0, cv::INTER_CUBIC);
 
 	pcl_cloud.reset(new pcl::PointCloud<pcl::PointXYZRGB>);
 	pcl_cloud->width = img.cols;
@@ -1052,7 +1052,7 @@ void Utils::image_to_pcl(Mat& img, Mat& depth,
 
 	// explicitly specify dsize=dst.size(); fx and fy will be computed from that.
 	if (img.size() != depth.size())
-		resize(depth, depth, img.size(), 0, 0, INTER_CUBIC);
+		resize(depth, depth, img.size(), 0, 0, cv::INTER_CUBIC);
 
 	pcl_cloud.reset(new pcl::PointCloud<pcl::PointXYZRGB>);
 	pcl_cloud->width = img.cols;

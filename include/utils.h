@@ -29,8 +29,6 @@
 
 
 using namespace std;
-using namespace cv;
-using namespace pcl;
 using namespace std::chrono;
 using std::ostream;
 
@@ -38,6 +36,9 @@ const size_t ERROR_IN_COMMAND_LINE = 1;
 const size_t SUCCESS = 0;
 const size_t ERROR_UNHANDLED_EXCEPTION = 2;
 
+
+using PointXYZ = pcl::PointXYZ;
+using PointXYZRGB = pcl::PointXYZRGB;
 
 class Utils {
 public:
@@ -58,7 +59,7 @@ public:
 
 	void merge_two_bounding_rects(Rect& rec1,Rect& rec2, Rect& res);
 
-	void cropped_pcl_from_segments(Mat& img, Mat& depth,vector<Segment*>&segments,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,Mat& tmp_img,Mat& tmp_depth);
+	void cropped_pcl_from_segments(cv::Mat& img, cv::Mat& depth,vector<Segment*>&segments,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,cv::Mat& tmp_img,cv::Mat& tmp_depth);
 
 	void compute_normals(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 			pcl::PointCloud<pcl::Normal>::Ptr& normals);
@@ -66,7 +67,7 @@ public:
 	void compute_integral_normals(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 			pcl::PointCloud<pcl::Normal>::Ptr& normals);
 
-	void compute_vfh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud, pcl::PointCloud<pcl::Normal>::Ptr& normals, Mat& vfh_features);
+	void compute_vfh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud, pcl::PointCloud<pcl::Normal>::Ptr& normals, cv::Mat& vfh_features);
 
 	void compute_fpfh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,pcl::PointCloud<pcl::FPFHSignature33>::Ptr& fpfhs);
 
@@ -96,7 +97,7 @@ public:
 	void find_pcl_yaw(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud, Point3d& orientation);
 
 
-	void find_detection_yaw(Mat& mask, Mat& img,Mat& depth, Point3d& position,Point3d& orientation);
+	void find_detection_yaw(cv::Mat& mask, cv::Mat& img,cv::Mat& depth, Point3d& position,Point3d& orientation);
 
 
 	void compute_bounding_box(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,Point3d& dimensions_3d);
@@ -106,13 +107,13 @@ public:
 
 	void xyz_gravity_center(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud,  Point3d& gravity_center, double &max_z/*,Eigen::Matrix3f& eigenVectors*/);
 
-	void mask_to_pcl_indices(Mat& mask,vector<int>& indices );
+	void mask_to_pcl_indices(cv::Mat& mask,vector<int>& indices );
 
 
-	void image_to_pcl(Mat& img, Mat& depth,
+	void image_to_pcl(cv::Mat& img, cv::Mat& depth,
 			pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud, int cx, int cy, Rect& rect);
 
-	void image_to_pcl(Mat& img, Mat& depth,
+	void image_to_pcl(cv::Mat& img, cv::Mat& depth,
 			pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud);
 
 	void prune_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_dst);

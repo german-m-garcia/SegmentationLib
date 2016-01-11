@@ -39,7 +39,6 @@
 #include "segment.h"
 
 using namespace std;
-using namespace cv;
 
 
 #define SEGMENTS 600
@@ -82,7 +81,7 @@ public:
 
 protected:
 	std::vector<Vec3b> mapLabels;
-	Mat component_id;
+	cv::Mat component_id;
 	vector<Segment*> segments;
 	map<uint16_t,Segment*> mapSegments;
 	void show_patches(Mat &kImage,

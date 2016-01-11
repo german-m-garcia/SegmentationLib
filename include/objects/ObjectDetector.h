@@ -20,10 +20,20 @@
 using namespace mrsmap;
 
 
-//using namespace std;
-//using namespace cv;
 typedef pcl::PointCloud<pcl::PointXYZ>::Ptr PlainCloudptr;
 typedef pcl::PointCloud<pcl::PointXYZRGB>::Ptr Cloudptr;
+
+
+using Mat = cv::Mat;
+using Point2i = cv::Point2i;
+using Point = cv::Point;
+using Rect = cv::Rect;
+using RNG = cv::RNG;
+using Size = cv::Size;
+using Vec4i = cv::Vec4i;
+
+
+
 
 class ObjectDetector {
 public:

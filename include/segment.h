@@ -14,7 +14,21 @@
 #include <pcl/io/pcd_io.h>
 
 using namespace std;
-using namespace cv;
+
+using Mat = cv::Mat;
+using Vec3b = cv::Vec3b;
+using Point2i = cv::Point2i;
+using Rect = cv::Rect;
+using Point = cv::Point;
+using Point2d = cv::Point2d;
+using Point3d = cv::Point3d;
+using RNG = cv::RNG;
+using Scalar = cv::Scalar;
+using Size = cv::Size;
+using PCA = cv::PCA;
+using Moments = cv::Moments;
+
+
 
 #define DEBUG false
 

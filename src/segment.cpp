@@ -11,11 +11,10 @@
 #include <vector>
 
 using namespace std;
-using namespace pcl;
-using namespace Eigen;
+
 
 //initialise the Random Number Generator
-RNG Segment::rng = theRNG();
+RNG Segment::rng = RNG();
 
 Segment::Segment(Mat& original) :
 		random_colour_(rng(256), rng(256), rng(256)), original_(original), pcl_cloud_(
@@ -299,15 +298,15 @@ void Segment::computeHistogram() {
 	histImage_ = Mat(hist_h, hist_w, CV_8UC3, Scalar(0, 0, 0));
 
 	/// Normalize the result to [ 0,1]
-	normalize(h_hist, h_hist, 0, 1, NORM_MINMAX, -1, Mat());
-	normalize(s_hist, s_hist, 0, 1, NORM_MINMAX, -1, Mat());
-	normalize(v_hist, v_hist, 0, 1, NORM_MINMAX, -1, Mat());
+	normalize(h_hist, h_hist, 0, 1, cv::NORM_MINMAX, -1, Mat());
+	normalize(s_hist, s_hist, 0, 1, cv::NORM_MINMAX, -1, Mat());
+	normalize(v_hist, v_hist, 0, 1, cv::NORM_MINMAX, -1, Mat());
 
 	if (DEBUG) {
 		/// Normalize the result to [ 0, histImage.rows ]
-		normalize(h_hist, h_hist, 0, histImage_.rows, NORM_MINMAX, -1, Mat());
-		normalize(s_hist, s_hist, 0, histImage_.rows, NORM_MINMAX, -1, Mat());
-		normalize(v_hist, v_hist, 0, histImage_.rows, NORM_MINMAX, -1, Mat());
+		normalize(h_hist, h_hist, 0, histImage_.rows, cv::NORM_MINMAX, -1, Mat());
+		normalize(s_hist, s_hist, 0, histImage_.rows, cv::NORM_MINMAX, -1, Mat());
+		normalize(v_hist, v_hist, 0, histImage_.rows, cv::NORM_MINMAX, -1, Mat());
 		/// Draw for each channel
 		for (int i = 1; i < histSize; i++) {
 			line(histImage_,

@@ -25,7 +25,10 @@
 #include "utils.h"
 
 
-using namespace Eigen;
+
+
+
+
 
 ObjectDetector::ObjectDetector():threshold_positive_class(0.2),object_name_("") {
 	// TODO Auto-generated constructor stub
@@ -60,18 +63,18 @@ void ObjectDetector::test_data(std::vector<Segment*>& test_segments) {
 }
 
 //finds the bounding rectangle of the slc
-void ObjectDetector::find_slc_bounding_box(Mat& src, vector<Rect>& rects, vector<Mat>& masks) {
+void ObjectDetector::find_slc_bounding_box(cv::Mat& src, vector<Rect>& rects, vector<cv::Mat>& masks) {
 
-	Mat mask = src.clone();
+	cv::Mat mask = src.clone();
 	vector<vector<Point> > contours;
 	vector<Vec4i> hierarchy;
 
 	/// Find contours
-	findContours(mask, contours, hierarchy, RETR_CCOMP, CV_CHAIN_APPROX_NONE,
+	findContours(mask, contours, hierarchy, cv::RETR_CCOMP, CV_CHAIN_APPROX_NONE,
 			Point(0, 0));
 	/// Draw contours
-	RNG rng(12345);
-	Mat drawing = Mat::zeros(mask.size(), CV_8UC3);
+	cv::RNG rng(12345);
+	cv::Mat drawing = cv::Mat::zeros(mask.size(), CV_8UC3);
 	for (int i = 0; i < contours.size(); i++) {
 		//if it has parents we skip it at first
 		if (hierarchy[i][3] != -1) {
@@ -80,7 +83,7 @@ void ObjectDetector::find_slc_bounding_box(Mat& src, vector<Rect>& rects, vector
 		Scalar color = Scalar(rng.uniform(0, 255), rng.uniform(0, 255),
 				rng.uniform(0, 255));
 		//drawContours(drawing, contours, i, color, 2, 8, hierarchy, 0, Point());
-		Mat object = Mat::zeros(mask.size(), CV_8UC1);
+		cv::Mat object = cv::Mat::zeros(mask.size(), CV_8UC1);
 		drawContours(object, contours, i, Scalar(255), -1);
 		Rect rect = boundingRect(contours[i]);
 		masks.push_back(object);
@@ -101,7 +104,7 @@ void ObjectDetector::find_slc_bounding_box(Mat& src, vector<Rect>& rects, vector
  * The point cloud of the object is computed and added to the pcl_clouds vector
  *
  */
-void ObjectDetector::add_selected_segments(Mat&img, Mat& depth_float,vector<Segment*>& fg_segments,vector<Segment*>& bg_segments){
+void ObjectDetector::add_selected_segments(cv::Mat&img, cv::Mat& depth_float,vector<Segment*>& fg_segments,vector<Segment*>& bg_segments){
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
 	pcl::PointCloud<pcl::Normal>::Ptr normals;
 
@@ -120,7 +123,7 @@ void ObjectDetector::add_selected_segments(Mat&img, Mat& depth_float,vector<Segm
 	}
 	//string text("OD cloud");
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cropped_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-	Mat tmp_img, tmp_depth;
+	cv::Mat tmp_img, tmp_depth;
 	utils.cropped_pcl_from_segments(img, depth_float,fg_segments, cropped_cloud, tmp_img, tmp_depth);
 	//cout <<"displaying cropped cloud"<<endl;
 	//utils.display_cloud(cropped_cloud,text);
@@ -137,7 +140,7 @@ void ObjectDetector::add_selected_segments(Mat&img, Mat& depth_float,vector<Segm
  * overlaid on the input image
  *
  */
-void ObjectDetector::draw_contours_detections(Mat& src,Mat& mask, Mat& debug) {
+void ObjectDetector::draw_contours_detections(cv::Mat& src,cv::Mat& mask, cv::Mat& debug) {
 
 
 	debug = src.clone();
@@ -145,12 +148,12 @@ void ObjectDetector::draw_contours_detections(Mat& src,Mat& mask, Mat& debug) {
 	vector<Vec4i> hierarchy;
 
 	/// Find contours
-	findContours(mask, contours, hierarchy, RETR_CCOMP, CV_CHAIN_APPROX_NONE,
+	findContours(mask, contours, hierarchy, cv::RETR_CCOMP, CV_CHAIN_APPROX_NONE,
 			Point(0, 0));
 	/// Draw contours
 	RNG rng(5345);
-	Mat drawing = Mat::zeros(mask.size(), CV_8UC3);
-	for (int i = 0; i < contours.size(); i++) {
+	cv::Mat drawing = cv::Mat::zeros(mask.size(), CV_8UC3);
+	for (unsigned int i = 0; i < contours.size(); i++) {
 		//if it has parents we skip it at first
 		if (hierarchy[i][3] != -1) {
 			continue;
@@ -163,7 +166,7 @@ void ObjectDetector::draw_contours_detections(Mat& src,Mat& mask, Mat& debug) {
 		drawContours(debug, contours, i, color, thickness);
 
 		Rect boundRect = boundingRect( Mat(contours[i]) );
-		putText(debug,object_name_,Point(boundRect.x,boundRect.y), FONT_HERSHEY_SIMPLEX,0.4,color,1);
+		putText(debug,object_name_,Point(boundRect.x,boundRect.y), cv::FONT_HERSHEY_SIMPLEX,0.4,color,1);
 
 	}
 
@@ -480,12 +483,12 @@ void ObjectDetector::run_kinfu(float vsz) {
 
 	kinfu_.setDepthIntrinsics(fx, fy, cx, cy);
 
-	Eigen::Vector3f volume_size = Vector3f::Constant(vsz/*meters*/);
+	Eigen::Vector3f volume_size = Eigen::Vector3f::Constant(vsz/*meters*/);
 	kinfu_.volume().setSize(volume_size);
 
 	Eigen::Matrix3f R = Eigen::Matrix3f::Identity(); // * AngleAxisf( pcl::deg2rad(-30.f), Vector3f::UnitX());
 	Eigen::Vector3f t = volume_size * 0.5f
-			- Vector3f(0, 0, volume_size(2) / 2 * 1.2f);
+			- Eigen::Vector3f(0, 0, volume_size(2) / 2 * 1.2f);
 
 	Eigen::Affine3f pose = Eigen::Translation3f(t) * Eigen::AngleAxisf(R);
 
