@@ -29,43 +29,43 @@ find_package(Boost REQUIRED program_options)
 add_definitions(-DHAVE_STRING_H)
 
 # OctreeLib required
-find_package(OctreeLib REQUIRED)
-include_directories(${OCTREELIB_INCLUDE_DIRS})
+#find_package(OctreeLib REQUIRED)
+#include_directories(${OCTREELIB_INCLUDE_DIRS})
 
 # G2O required
-find_package(G2O REQUIRED)
-include_directories(${G2O_INCLUDE_DIR})
+#find_package(G2O REQUIRED)
+#include_directories(${G2O_INCLUDE_DIR})
 
 # GSL required
-find_package(GSL REQUIRED)
-include_directories(${GSL_INCLUDE_DIRS})
-link_directories(${GSL_LIBRARY_DIRS})
+#find_package(GSL REQUIRED)
+#include_directories(${GSL_INCLUDE_DIRS})
+#link_directories(${GSL_LIBRARY_DIRS})
 
 # TBB required
-find_package(TBB REQUIRED)
-include_directories(${TBB_INCLUDE_DIRS})
+#find_package(TBB REQUIRED)
+#include_directories(${TBB_INCLUDE_DIRS})
 
 # For building the CHOLMOD / CSPARSE solvers
-find_package(Cholmod)
-find_package(BLAS)
-find_package(LAPACK)
-find_package(CSparse)
-include_directories(${CSPARSE_INCLUDE_DIR})
+#find_package(Cholmod)
+#find_package(BLAS)
+#find_package(LAPACK)
+#find_package(CSparse)
+#include_directories(${CSPARSE_INCLUDE_DIR})
 
 
 #MRSmap
-set(MRSmap_LIB_PATH /home/martin/workspace/mrsmap/)
-ADD_LIBRARY(mrsmapLib SHARED IMPORTED)
-SET_TARGET_PROPERTIES(mrsmapLib PROPERTIES
-    IMPORTED_LOCATION ${MRSmap_LIB_PATH}/build/devel/lib/libmrsmap.so)
-include_directories(${MRSmap_LIB_PATH}/include)
+#set(MRSmap_LIB_PATH /home/martin/workspace/mrsmap/)
+#ADD_LIBRARY(mrsmapLib SHARED IMPORTED)
+#SET_TARGET_PROPERTIES(mrsmapLib PROPERTIES
+    #IMPORTED_LOCATION ${MRSmap_LIB_PATH}/build/devel/lib/libmrsmap.so)
+#include_directories(${MRSmap_LIB_PATH}/include)
 
 #MRSSlam
-set(MRSslam_LIB_PATH /home/martin/workspace/mrsmap/)
-ADD_LIBRARY(mrsslamLib SHARED IMPORTED)
-SET_TARGET_PROPERTIES(mrsslamLib PROPERTIES
-    IMPORTED_LOCATION ${MRSslam_LIB_PATH}/build/devel/lib/libmrsslam.so)
-include_directories(${MRSslam_LIB_PATH}/include)
+#set(MRSslam_LIB_PATH /home/martin/workspace/mrsmap/)
+#ADD_LIBRARY(mrsslamLib SHARED IMPORTED)
+#SET_TARGET_PROPERTIES(mrsslamLib PROPERTIES
+    #IMPORTED_LOCATION ${MRSslam_LIB_PATH}/build/devel/lib/libmrsslam.so)
+#include_directories(${MRSslam_LIB_PATH}/include)
 
 
 
@@ -125,7 +125,12 @@ add_library(SEGMENTATION SHARED
 
 #Create an Executable for segment reader
 add_executable(segment ${PROJECT_SOURCE_DIR}/segmenter.cpp)
-target_link_libraries( segment SEGMENTATION  ${Boost_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS} mrsmapLib mrsslamLib)
+target_link_libraries( segment SEGMENTATION  ${Boost_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS}) #mrsmapLib mrsslamLib)
+
+#Create an Executable for test main file
+add_executable(test ${PROJECT_SOURCE_DIR}/test.cpp)
+target_link_libraries( test  ${Boost_LIBRARIES} ${PCL_LIBRARIES})
+
 
 #add_executable(ms_segment ${PROJECT_SOURCE_DIR}/ms_segmenter.cpp)
 #target_link_libraries( ms_segment  SEGMENTATION ${Boost_LIBRARIES}  ${OpenCV_LIBS}  ${PCL_LIBRARIES} )

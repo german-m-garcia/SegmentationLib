@@ -172,9 +172,9 @@ void Segmentation::bilateral_filter(bool gpu, cv::Mat& src_dst) {
 
 
 
-	cv::medianBlur(src_dst, tmp_f, 3);
-	cv::medianBlur(src_dst, tmp_f, 5);
-	//cv::bilateralFilter(src_dst, tmp_f, -1, 15, 7);
+	//cv::medianBlur(src_dst, tmp_f, 3);
+	//cv::medianBlur(src_dst, tmp_f, 5);
+	cv::bilateralFilter(src_dst, tmp_f, -1, 15, 7);
 	//cv::bilateralFilter(src_dst, tmp_f, 0, 15, 7);
 
 	src_dst = tmp_f;

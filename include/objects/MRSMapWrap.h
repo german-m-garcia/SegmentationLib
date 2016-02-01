@@ -20,6 +20,7 @@
 
 #include <Eigen/Core>
 
+#include "utils.h"
 
 //#include <mrsmap/map/multiresolution_surfel_map.h>
 
@@ -28,9 +29,9 @@
 
 
 
-#include <mrsmap/utilities/utilities.h>
-
-#include <mrsmap/slam/slam.h>
+//#include <mrsmap/utilities/utilities.h>
+//
+//#include <mrsmap/slam/slam.h>
 //#include <mrsmap/visualization/visualization_slam.h>
 
 
@@ -38,7 +39,7 @@
 #include "segment.h"
 #include <opencv2/imgproc/imgproc.hpp>
 
-using namespace mrsmap;
+//using namespace mrsmap;
 
 
 
@@ -49,25 +50,27 @@ public:
 	virtual ~MRSMapWrap();
 
 	void show();
+	void addPcl(cv::Mat& src, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,Point3d& gravity_center);
+
+	double icp(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_1, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_2,Eigen::Matrix4f& transform);
+	double generalized_icp(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_1, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_2,Eigen::Matrix4f& transform);
+	//double register_mrsmaps(boost::shared_ptr<MultiResolutionSurfelMap>& model_1, boost::shared_ptr<MultiResolutionSurfelMap>& model_2,Point3d& gravity_center_1,Point3d& gravity_center_2,Eigen::Matrix4d& transform);
+
+	void pairAlign (pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src, pcl::PointCloud<pcl::PointXYZRGB>::Ptr&, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& output, Eigen::Matrix4f &final_transform, bool downsample = false);
+	double test_cloud(cv::Mat& src,	pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,Point3d& gravity_center);
 	void initialize(cv::Mat& src, cv::Mat& depth, std::vector<Segment*>& segments);
 	void initialize(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pointCloudIn);
 private:
 
-//	boost::shared_ptr< MultiResolutionSurfelMap > map_;
-//	double max_resolution_, max_radius_, dist_dep_;
-//	bool create_map_;
-//	std::string map_folder_;
-//	std::string object_name_;
-//	std::string init_frame_;
-//
-//
-//	pcl::PointCloud< pcl::PointXYZRGB >::Ptr cloudv;
-//
-//	boost::shared_ptr< MultiResolutionSurfelMap::ImagePreAllocator > imageAllocator_;
-//	boost::shared_ptr< spatialaggregate::OcTreeNodeDynamicAllocator< float, MultiResolutionSurfelMap::NodeValue > > treeNodeAllocator_;
+	pcl::PointCloud< pcl::PointXYZRGB >::Ptr model_cloud_;
+	Utils utils_;
 
-
-	SLAM slam_;
+//	boost::shared_ptr<MultiResolutionSurfelMap> model_mrsmap_;
+//	Point3d model_gravity_center_;
+//	boost::shared_ptr<MultiResolutionSurfelMap> current_mrsmap;
+//
+//	boost::shared_ptr< MultiResolutionSurfelMap::ImagePreAllocator > imageAllocator_,modelImageAllocator_;
+//	boost::shared_ptr< spatialaggregate::OcTreeNodeDynamicAllocator< float, MultiResolutionSurfelMap::NodeValue > > curMapTreeNodeAllocator_,modelTreeNodeAllocator_;
 //
 //	Eigen::Matrix4d lastTransform_;
 //
@@ -75,12 +78,14 @@ private:
 //
 //	bool skip_past_frames_;
 //
-//	boost::shared_ptr< MultiResolutionSurfelMap::ImagePreAllocator > imageAllocator_;
+//
 //	boost::shared_ptr< spatialaggregate::OcTreeNodeDynamicAllocator< float, MultiResolutionSurfelMap::NodeValue > > treeNodeAllocator_[ 2 ];
 //
-//	ViewerSLAM viewer_;
+//	//ViewerSLAM viewer_;
 //	bool graphChanged_;
 //	int use_pointfeatures_, downsampling_, debug_;
+
+	//void model_mean(boost::shared_ptr<MultiResolutionSurfelMap>& model_1);
 
 };
 

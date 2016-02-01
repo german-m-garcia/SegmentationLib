@@ -7,6 +7,7 @@
 
 //#include <opencv2/core/core.hpp>
 #include "objects/svm_wrapper.h"
+#include <fstream>
 
 using namespace cv;
 using namespace std;
@@ -86,7 +87,8 @@ void SVMWrapper::add_training_data(vector<Segment*>& objects,
 }
 
 void SVMWrapper::trainSVM() {
-	//normalise the training data column wise
+
+//	//normalise the training data column wise
 //	for (int i = 0; i < Segment::NUMBER_VISUAL_FEATS; i++) {
 //		Rect rect(i, 0, 1, trainingData.rows);
 //		Mat feat = trainingData(rect);
@@ -156,6 +158,48 @@ void SVMWrapper::trainSVM() {
 //			                 SVM::getDefaultGrid(SVM::COEF),
 //			                 SVM::getDefaultGrid(SVM::DEGREE), true);
 
+
+
+}
+
+//std::istream& operator>>(std::istream& is, SVMWrapper& en)
+//	{
+//	    is >> en.trainingData;
+//	    is >> en.labels;
+//	    return is;
+//	}
+
+
+void SVMWrapper::save_current_data(std::string& path){
+
+//	std::ofstream os(path.c_str(),std::ofstream::binary);
+//	//os << sizeof(trainingData);
+//	os << trainingData;
+//	os << endl;
+//	//os << sizeof(labels);
+//	os << labels;
+//	os << endl;
+
+	cv::FileStorage fs(path, cv::FileStorage::WRITE);
+	fs << "trainingData" << trainingData;
+	fs << "labels" << labels;
+	fs.release();
+
+}
+
+void SVMWrapper::load_current_data(std::string& path){
+
+	// read:
+	cv::FileStorage fs(path, cv::FileStorage::READ);
+	if(fs.isOpened()){
+		cout <<"> FileStorage is open. Reading Mat data.."<<endl;
+		fs["trainingData"] >> trainingData;
+		fs["labels"] >> labels;
+		fs.release();
+
+		cout <<"trainingData="<<endl;
+		cout <<trainingData<<endl;
+	}
 
 
 }

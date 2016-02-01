@@ -14,6 +14,9 @@
 #include <pcl/common/impl/common.hpp>
 #include <pcl/filters/radius_outlier_removal.h>
 #include <pcl/filters/conditional_removal.h>
+#include <pcl/filters/filter.h>
+#include <pcl/filters/median_filter.h>
+#include <pcl/filters/model_outlier_removal.h>
 
 #include <pcl/search/search.h>
 #include <pcl/search/kdtree.h>
@@ -25,29 +28,29 @@
 #include <pcl/features/integral_image_normal.h>
 #include <pcl/features/moment_of_inertia_estimation.h>
 
-/*
- *
- * double threshold = 0.01;//0.05;
+#include <pcl/filters/random_sample.h>
+#include <pcl/filters/uniform_sampling.h>
+#include <pcl/surface/organized_fast_mesh.h>
 
- if(argc < 4){
- cout <<"Usage: $> ./segmenter <input img> <output path> <scales> [<use gpu, default 0=false>]"<< endl;
- }
 
- original_img = cv::imread(argv[1], -1);
- std::string outputPath(argv[2]);
- int scales = atoi(argv[3]);
- int starting_scale = 0;
- int gpu = 0;
- if(argc == 5){
- gpu = atoi(argv[4]);
- }
- else if(argc == 6){
- gpu = atoi(argv[4]);
- threshold = atof(argv[5]);
- }
- *
- *
- */
+
+std::string Utils::stringify(double x) {
+  std::ostringstream o;
+  if ((o << x))
+
+    return o.str();
+  else
+    return NULL;
+}
+
+std::string Utils::stringify(int x) {
+  std::ostringstream o;
+  if ((o << x))
+
+    return o.str();
+  else
+    return NULL;
+}
 
 std::string Utils::remove_extension(const std::string& filename) {
 	size_t lastdot = filename.find_last_of(".");
@@ -126,7 +129,7 @@ int Utils::parse_args(int argc, char **argv, double& thres, int& scales,
 	 */
 	namespace po = boost::program_options;
 	po::options_description desc("Options");
-	int frame = -1;
+
 	string imagePath = "", depthPath = "", segmentsPath = "", outputPath = "",
 			iorPath = "", tdPath = "", cfg_path = "";
 	string salMode = "", segMode = "";
@@ -246,6 +249,42 @@ void Utils::merge_two_bounding_rects(Rect& rec1, Rect& rec2, Rect& res) {
 
 }
 
+/*
+ * !brief Builds a mesh for the input point cloud
+ *
+ * @src_cloud [input]
+ * @ mesh1 [output]
+ *
+ */
+void Utils::build_mesh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud, pcl::PolygonMesh::Ptr& mesh1){
+
+	mesh1 = pcl::PolygonMesh::Ptr(new pcl::PolygonMesh);
+
+	// reconstruct meshes for source and target
+	pcl::OrganizedFastMesh<pcl::PointXYZRGB> fast_mesh;
+	fast_mesh.setInputCloud(src_cloud);
+	fast_mesh.reconstruct(*mesh1);
+
+}
+
+void Utils::display_mesh(pcl::PolygonMesh::Ptr& mesh){
+	pcl::visualization::PCLVisualizer viewer("Mesh Viewer");
+	viewer.setBackgroundColor (0, 0, 0);
+	viewer.addPolygonMesh(*mesh,"meshes",0);
+	viewer.addCoordinateSystem (1.0);
+	viewer.initCameraParameters ();
+	while (!viewer.wasStopped ()){
+	    viewer.spinOnce (100);
+	    //boost::this_thread::sleep (boost::posix_time::microseconds (100000));
+	}
+}
+
+/*
+ * !brief Displays the point cloud and surface normals and shows the specified text
+ * as the title of the visualizer
+ *
+ *
+ */
 void Utils::display_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 		pcl::PointCloud<pcl::Normal>::Ptr normals, string& text) {
 	// visualize normals
@@ -258,13 +297,42 @@ void Utils::display_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 	}
 }
 
+/*
+ * !brief Displays the point cloud and shows the specified text
+ * as the title of the visualizer
+ *
+ *
+ */
 void Utils::display_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 		string& text) {
 	pcl::visualization::PCLVisualizer viewer(text);
 	viewer.setBackgroundColor(0, 0, 0);
 	viewer.addPointCloud < pcl::PointXYZRGB > (cloud, text);
 	viewer.addCoordinateSystem(1.0);
-	viewer.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10,text);
+	viewer.setPointCloudRenderingProperties(
+			pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10, text);
+	viewer.spin();
+}
+
+/*
+ * !brief Displays the points of the cloud specified by the indices vector
+ *
+ *
+ */
+void Utils::display_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
+		std::vector<int>& indices,
+		string& text) {
+
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_copy(new pcl::PointCloud<pcl::PointXYZRGB>);
+	for(int index : indices)
+		cloud_copy->points.push_back(cloud->points[index]);
+
+	pcl::visualization::PCLVisualizer viewer(text);
+	viewer.setBackgroundColor(0, 0, 0);
+	viewer.addPointCloud < pcl::PointXYZRGB > (cloud_copy, text);
+	viewer.addCoordinateSystem(1.0);
+	viewer.setPointCloudRenderingProperties(
+			pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10, text);
 	viewer.spin();
 }
 
@@ -329,7 +397,7 @@ void Utils::cluster(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud) {
 	std::cout << "These are the indices of the points of the initial"
 			<< std::endl << "cloud that belong to the first cluster:"
 			<< std::endl;
-	int counter = 0;
+	unsigned int counter = 0;
 	while (counter < clusters[0].indices.size()) {
 		std::cout << clusters[0].indices[counter] << ", ";
 		counter++;
@@ -348,35 +416,45 @@ void Utils::cluster(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud) {
 	return;
 }
 
-void Utils::cropped_pcl_from_segments(Mat& img, Mat& depth,vector<Segment*>&segments,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,Mat& tmp_img,Mat& tmp_depth){
+/*
+ * !brief Computes the point cloud that corresponds only to the input vector of segments
+ *
+ * @img [input] image of the full scene
+ * @depth [input] depth map of the full scene
+ * @segments [input] vector of the object's segments
+ * @cloud [output] the point cloud corresponding to the segments
+ * @tmp_img [output] the cropped image corresponding to the object
+ * @tmp_depth [output] the cropped depth map corresponding to the object
+ *
+ *
+ */
+void Utils::cropped_pcl_from_segments(Mat& img, Mat& depth,
+		vector<Segment*>&segments,
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud, Mat& tmp_img,
+		Mat& tmp_depth) {
 
 	Size size_segments = segments[0]->getBinaryMat().size();
-	cout <<" target size="<<size_segments<<endl;
-	cout <<" current size="<<img.size()<<endl;
-//	pyrDown(img,img2,cv::Size(img.cols / 2, img.rows / 2));
-//	pyrDown(depth,depth2,cv::Size(img.cols / 2, img.rows / 2));
+	cout << " target size=" << size_segments << endl;
+	cout << " current size=" << img.size() << endl;
 
-	//depth2 *= 0.001;
-	Mat cropped_img,cropped_depth;
+	Mat cropped_img, cropped_depth;
 	tmp_img = Mat::zeros(img.rows, img.cols, CV_8UC3);
 	tmp_depth = Mat::zeros(img.rows, img.cols, CV_32FC1);
 
 	Mat mask = Mat::zeros(size_segments, CV_8UC1);
+	//iterate over the segments and fill in the binary mask
 	for (Segment * seg : segments) {
-		//mask(seg->getBoundRect()) += seg->getRandomColourMat();
-		//imshow("seg->getRandomColourMat()",seg->getRandomColourMat());
-		//imshow("seg->getBinaryMat()",seg->getBinaryMat());
-		//waitKey(0);
-		//cout <<"mask.size()="<<mask.size()<<" seg->getBinaryMat().size()="<<seg->getBinaryMat().size()<<endl;
-		mask += seg->getBinaryMat();
-		//imshow("seg",seg->getMatOriginalColour());
-	}
-	resize(mask,mask,img.size());
 
+		mask += seg->getBinaryMat();
+
+	}
+	resize(mask, mask, img.size());
+	//REMOVE!!!!
+	//erode(mask, mask, Mat());
 
 	Mat pointsMat;
-	cv::findNonZero(mask,pointsMat);
-	Rect minRect=boundingRect(pointsMat);
+	cv::findNonZero(mask, pointsMat);
+	Rect minRect = boundingRect(pointsMat);
 //	imshow("mask", mask);
 //	imshow("mask cropped", mask(minRect));
 //	waitKey(0);
@@ -386,17 +464,15 @@ void Utils::cropped_pcl_from_segments(Mat& img, Mat& depth,vector<Segment*>&segm
 	img.copyTo(tmp_img, mask);
 	depth.copyTo(tmp_depth, mask);
 
-
-
 	Utils utils;
 	cropped_img = tmp_img(minRect);
 	cropped_depth = tmp_depth(minRect);
 	//imshow("mask", mask);
 	//imshow("cropped_img", cropped_img);
 	//waitKey(0);
-	int cx = img.cols/2;
-	int cy = img.rows/2;
-	utils.image_to_pcl(cropped_img,cropped_depth , cloud,cx,cy,minRect);
+	int cx = img.cols / 2;
+	int cy = img.rows / 2;
+	utils.image_to_pcl(cropped_img, cropped_depth, cloud, cx, cy, minRect);
 //	pcl::PointCloud<pcl::PointXYZRGB>::Ptr pruned_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
 //	utils.prune_pcl(cloud, pruned_cloud);
 //	cout <<"original cloud ->points.size()="<<cloud->points.size()<<endl;
@@ -430,6 +506,14 @@ void Utils::compute_normals(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 //	ne.compute(*normals);
 }
 
+
+/*
+ * !brief Computes the surface normals of an organized point cloud
+ *
+ * @cloud [input]: needs to be organized!!
+ * @normals [output]
+ *
+ */
 void Utils::compute_integral_normals(
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 		pcl::PointCloud<pcl::Normal>::Ptr& normals) {
@@ -480,8 +564,8 @@ void Utils::compute_vfh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 
 	// Display and retrieve the shape context descriptor vector for the 0th point.
 	pcl::VFHSignature308 descriptor = vfhFeatures->points[0];
-	VFHEstimationType::PointCloudOut::PointType descriptor2 =
-			vfhFeatures->points[0];
+//	VFHEstimationType::PointCloudOut::PointType descriptor2 =
+//			vfhFeatures->points[0];
 	vfh_features.create(1, descriptor.descriptorSize(), CV_32FC1);
 	for (int i = 0; i < descriptor.descriptorSize(); i++) {
 		vfh_features.at<float>(0, i) = descriptor.histogram[i];
@@ -549,6 +633,13 @@ void Utils::compute_cvfh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 //	cvfhEstimation.compute(*vfhFeatures);
 }
 
+/*
+ * !brief Computes the FPFH features for a given point cloud
+ *
+ * @cloud [input]
+ * @fpfhs [output]
+ *
+ */
 void Utils::compute_fpfh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 		pcl::PointCloud<pcl::FPFHSignature33>::Ptr& fpfhs) {
 	// Create the FPFH estimation class, and pass the input dataset+normals to it
@@ -578,8 +669,8 @@ void Utils::compute_fpfh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 
 }
 
-void Utils::compute_inertia(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud, Point3d& dimensions_3d) {
-
+void Utils::compute_inertia(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
+		Point3d& dimensions_3d) {
 
 	pcl::MomentOfInertiaEstimation<pcl::PointXYZRGB> feature_extractor;
 	feature_extractor.setInputCloud(cloud);
@@ -622,7 +713,9 @@ void Utils::compute_inertia(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud, Point
 	dimensions_3d.x = max_point_OBB.x - min_point_OBB.x;
 	dimensions_3d.y = max_point_OBB.y - min_point_OBB.y;
 	dimensions_3d.z = max_point_OBB.z - min_point_OBB.z;
-	cout <<"compute_inertia: |x|="<<max_point_OBB.x - min_point_OBB.x<< " |y|="<<max_point_OBB.y - min_point_OBB.y<<" |z|="<<max_point_OBB.z - min_point_OBB.z<<endl;
+	cout << "compute_inertia: |x|=" << max_point_OBB.x - min_point_OBB.x
+			<< " |y|=" << max_point_OBB.y - min_point_OBB.y << " |z|="
+			<< max_point_OBB.z - min_point_OBB.z << endl;
 //	viewer->addCube(position, quat, max_point_OBB.x - min_point_OBB.x,
 //			max_point_OBB.y - min_point_OBB.y,
 //			max_point_OBB.z - min_point_OBB.z, "OBB");
@@ -641,10 +734,10 @@ void Utils::compute_inertia(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud, Point
 //	viewer->spin();
 }
 
-void Utils::find_detection_yaw(Mat& mask, Mat& img,Mat& depth, Point3d& position,Point3d& orientation){
+void Utils::find_detection_yaw(Mat& mask, Mat& img, Mat& depth,
+		Point3d& position, Point3d& orientation) {
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcl_cloud(
-				new pcl::PointCloud<pcl::PointXYZRGB>);
-
+			new pcl::PointCloud<pcl::PointXYZRGB>);
 
 	//compute the point cloud of this detection
 	Mat masked_img, masked_depth;
@@ -661,23 +754,80 @@ void Utils::find_detection_yaw(Mat& mask, Mat& img,Mat& depth, Point3d& position
 
 	//find the center of the object
 	double max_z = 0.;
-	xyz_gravity_center(cloud,position, max_z);
+	xyz_gravity_center(cloud, position, max_z);
 	//position.z = max_z;
 
 	//find its yaw
-	find_pcl_yaw(cloud,orientation);
+	find_pcl_yaw(cloud, orientation);
 	//cout <<">Utils::find_detection_yaw roll,pitch,yaw="<<orientation<<endl;
 	//string text("detection cloud");
 	//display_cloud(cloud,text);
 
+}
+
+/*
+ * rotates the point cloud around its eigen vectors
+ *
+ */
+void Utils::rotate_eigen_axes(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud) {
+
+	Eigen::Matrix3f eigenVectorsPCA;
+	compute_pca_alt(src_cloud, eigenVectorsPCA);
+
+	Eigen::Vector4f pcaCentroid;
+	pcl::compute3DCentroid(*src_cloud, pcaCentroid);
+
+	// Transform the original cloud to the origin where the principal components correspond to the axes.
+	Eigen::Matrix4f projectionTransform(Eigen::Matrix4f::Identity());
+	projectionTransform.block<3, 3>(0, 0) = eigenVectorsPCA.transpose();
+	projectionTransform.block<3, 1>(0, 3) = -1.f
+			* (projectionTransform.block<3, 3>(0, 0) * pcaCentroid.head<3>());
+	//TODO: change the code above with a call to obtain_eigen_axes
+	dst_cloud = pcl::PointCloud<pcl::PointXYZRGB>::Ptr(
+			new pcl::PointCloud<pcl::PointXYZRGB>);
+	pcl::transformPointCloud(*src_cloud, *dst_cloud, projectionTransform);
+}
+
+/*
+ * !brief Calculates the transformation that would rotate
+ * the point cloud around its eigen vectors.
+ *
+ * @src_cloud [input]
+ * @projectionTransform [output]
+ *
+ *
+ */
+void Utils::obtain_eigen_axes(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud, Eigen::Matrix4f& projectionTransform) {
+
+	Eigen::Matrix3f eigenVectorsPCA;
+	compute_pca_alt(src_cloud, eigenVectorsPCA);
+
+	Eigen::Vector4f pcaCentroid;
+	pcl::compute3DCentroid(*src_cloud, pcaCentroid);
+
+	// Transform the original cloud to the origin where the principal components correspond to the axes.
+	projectionTransform = Eigen::Matrix4f::Identity();
+	projectionTransform.block<3, 3>(0, 0) = eigenVectorsPCA.transpose();
+	projectionTransform.block<3, 1>(0, 3) = -1.f
+			* (projectionTransform.block<3, 3>(0, 0) * pcaCentroid.head<3>());
 
 }
 
-void Utils::compute_bounding_box(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
+/*
+ * !brief Computes the minimum bounding box around the point cloud
+ * and stores it in dimensions_3d
+ *
+ * @src_cloud [input]
+ * @dimensions_3d [output]
+ *
+ */
+void Utils::compute_bounding_box(
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
 		Point3d& dimensions_3d) {
 
 	Eigen::Matrix3f eigenVectorsPCA;
-	compute_pca_alt(src_cloud,eigenVectorsPCA);
+	compute_pca_alt(src_cloud, eigenVectorsPCA);
 
 	Eigen::Vector4f pcaCentroid;
 	pcl::compute3DCentroid(*src_cloud, pcaCentroid);
@@ -694,13 +844,13 @@ void Utils::compute_bounding_box(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_clo
 	// Get the minimum and maximum points of the transformed cloud.
 	pcl::PointXYZRGB minPoint, maxPoint;
 	pcl::getMinMax3D(*cloudPointsProjected, minPoint, maxPoint);
-	const Eigen::Vector3f meanDiagonal = 0.5f
-			* (maxPoint.getVector3fMap() + minPoint.getVector3fMap());
+//	const Eigen::Vector3f meanDiagonal = 0.5f
+//			* (maxPoint.getVector3fMap() + minPoint.getVector3fMap());
 
 	// Final transform
 	const Eigen::Quaternionf bboxQuaternion(eigenVectorsPCA); //Quaternions are a way to do rotations https://www.youtube.com/watch?v=mHVwd8gYLnI
-	const Eigen::Vector3f bboxTransform = eigenVectorsPCA * meanDiagonal
-			+ pcaCentroid.head<3>();
+	//const Eigen::Vector3f bboxTransform = eigenVectorsPCA * meanDiagonal
+	//		+ pcaCentroid.head<3>();
 
 	//lets rotate the point cloud
 	// Executing the transformation
@@ -716,34 +866,29 @@ void Utils::compute_bounding_box(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_clo
 	double x = maxPoint.x - minPoint.x;
 	double y = maxPoint.y - minPoint.y;
 	double z = maxPoint.z - minPoint.z;
-	vector<double> values({x,y,z});
-	sort(values.begin(),values.end());
+	vector<double> values( { x, y, z });
+	sort(values.begin(), values.end());
 	dimensions_3d.z = values[0];
 	dimensions_3d.y = values[1];
 	dimensions_3d.x = values[2];
 
-
 	return;
 
 	// This viewer has 4 windows, but is only showing images in one of them as written here.
-	pcl::visualization::PCLVisualizer *visu;
-	visu = new pcl::visualization::PCLVisualizer("PlyViewer");
-	int mesh_vp_1, mesh_vp_2, mesh_vp_3, mesh_vp_4;
-	visu->createViewPort(0.0, 0.5, 0.5, 1.0, mesh_vp_1);
-	visu->createViewPort(0.5, 0.5, 1.0, 1.0, mesh_vp_2);
-	visu->createViewPort(0.0, 0, 0.5, 0.5, mesh_vp_3);
-	visu->createViewPort(0.5, 0, 1.0, 0.5, mesh_vp_4);
-	visu->addPointCloud(src_cloud); //, ColorHandlerXYZRGB(src_cloud, 30, 144, 255), "bboxedCloud", mesh_vp_3);
-	visu->addCube(bboxTransform, bboxQuaternion, maxPoint.x - minPoint.x,
-			maxPoint.y - minPoint.y, maxPoint.z - minPoint.z, "bbox",
-			mesh_vp_3);
-	visu->spin();
-	return;
+//	pcl::visualization::PCLVisualizer *visu;
+//	visu = new pcl::visualization::PCLVisualizer("PlyViewer");
+//	int mesh_vp_1, mesh_vp_2, mesh_vp_3, mesh_vp_4;
+//	visu->createViewPort(0.0, 0.5, 0.5, 1.0, mesh_vp_1);
+//	visu->createViewPort(0.5, 0.5, 1.0, 1.0, mesh_vp_2);
+//	visu->createViewPort(0.0, 0, 0.5, 0.5, mesh_vp_3);
+//	visu->createViewPort(0.5, 0, 1.0, 0.5, mesh_vp_4);
+//	visu->addPointCloud(src_cloud); //, ColorHandlerXYZRGB(src_cloud, 30, 144, 255), "bboxedCloud", mesh_vp_3);
+//	visu->addCube(bboxTransform, bboxQuaternion, maxPoint.x - minPoint.x,
+//			maxPoint.y - minPoint.y, maxPoint.z - minPoint.z, "bbox",
+//			mesh_vp_3);
+//	visu->spin();
+//	return;
 }
-
-
-
-
 
 /*
  * removes all the points that have (0,0,0) coordinates.
@@ -757,7 +902,7 @@ void Utils::prune_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src,
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tpm_cloud(
 			new pcl::PointCloud<pcl::PointXYZRGB>);
 	for (pcl::PointXYZRGB& pt : *cloud_src) {
-		if (pt.x!= 0 || pt.y != 0 || pt.z != 0) {
+		if (  (  pt.x != 0 || pt.y != 0 || pt.z != 0) ){
 			tpm_cloud->points.push_back(pt);
 			npoints++;
 		}
@@ -765,13 +910,80 @@ void Utils::prune_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src,
 	tpm_cloud->width = npoints;
 	tpm_cloud->height = 1;
 	cloud_dst = tpm_cloud;
-	//remove_outliers(tpm_cloud, cloud_dst);
+
+}
+
+/*
+ * removes all the points that have (0,0,0) coordinates.
+ * Beware, if using integral images to compute normals based
+ * on the result of this function, because the point cloud
+ * will not be structured anymore => cloud->height = 1
+ */
+void Utils::nanify_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_dst) {
+	int npoints = 0;
+
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp_cloud = pcl::PointCloud<pcl::PointXYZRGB>::Ptr(	new pcl::PointCloud<pcl::PointXYZRGB>);
+	for (pcl::PointXYZRGB& pt : *cloud_src) {
+//		if (fabs(pt.x) > 0.00001 || fabs(pt.y) > 0.00001 || fabs(pt.z) > 0.00001) {
+//			//cout <<" non nanifyied point p="<<pt<<endl;
+//			npoints++;
+//		} else {
+//
+//			pt.x = NAN;
+//			pt.y = NAN;
+//			pt.z = NAN;
+//			//if(!isnan(pt.x))
+//			//	cout <<"problem with nanyfying!"<<endl;
+//		}
+		if(pt.x == 0. && pt.y == 0. && pt.z == 0.){
+			pt.x = NAN;
+			pt.y = -1.;//NAN;
+			pt.z = -1.;//NAN;
+			pt.r = 255;
+		}
+		tmp_cloud->points.push_back(pt);
+
+	}
+	cout << (int) (cloud_src->points.size()) - npoints << " points nanified"
+			<< endl;
+	cloud_dst = tmp_cloud;
+
+}
+
+void Utils::remove_zeros(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src,std::vector<int>& indices) {
+
+	indices.clear();
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp_cloud = pcl::PointCloud<pcl::PointXYZRGB>::Ptr(	new pcl::PointCloud<pcl::PointXYZRGB>);
+	int index = 0;
+	for (pcl::PointXYZRGB& pt : *cloud_src) {
+
+		if(isnan(pt.x) || (pt.x == 0. && pt.y == 0. && pt.z == 0.)){
+
+		}
+		else
+			indices.push_back(index);
+
+		index++;
+	}
+
+
 }
 
 void Utils::subtract_gravity_center(
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src,
 		Point3d& gravity_center) {
 	for (PointXYZRGB& p : *cloud_src) {
+		p.x -= gravity_center.x;
+		p.y -= gravity_center.y;
+		p.z -= gravity_center.z;
+	}
+}
+
+void Utils::subtract_gravity_center(
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src, std::vector<int>& indices,
+		Point3d& gravity_center) {
+	for(int index : indices){
+		pcl::PointXYZRGB& p = cloud_src->points[index];
 		p.x -= gravity_center.x;
 		p.y -= gravity_center.y;
 		p.z -= gravity_center.z;
@@ -787,12 +999,27 @@ void Utils::compute_pca(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pca_cloud,
 
 void Utils::remove_outliers(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud) {
+
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+
+
+	//median filter: introduces new points where there were none
+
+	pcl::MedianFilter<pcl::PointXYZRGB> fbf;
+	fbf.setInputCloud (src_cloud);
+	fbf.setMaxAllowedMovement (10);
+	fbf.setWindowSize (5);
+	fbf.filter (*tmp_cloud);
+	dst_cloud=tmp_cloud;
+
+
+
 	// Create the filtering object
-	pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor;
-	 sor.setInputCloud(src_cloud);
-	 sor.setMeanK(10);
-	 sor.setStddevMulThresh(1.0);
-	 sor.filter(*dst_cloud);
+//	pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor;
+//	sor.setInputCloud(src_cloud);
+//	sor.setMeanK(10);
+//	sor.setStddevMulThresh(1.0);
+//	sor.filter(*dst_cloud);
 
 //	pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> outrem;
 //	// build the filter
@@ -800,37 +1027,36 @@ void Utils::remove_outliers(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
 //	outrem.setRadiusSearch(0.01);
 //	outrem.setMinNeighborsInRadius(200);
 //	// apply filter
-//	outrem.filter(*dst_cloud);
+//	outrem.filter(*tmp_cloud);
+//	dst_cloud = tmp_cloud;
 }
 
 /*
  * angles.x angles.y angles.z = roll pitch yaw
  */
-void Utils::euler_from_R(Eigen::Matrix3f R,Point3d& angles){
+void Utils::euler_from_R(Eigen::Matrix3f R, Point3d& angles) {
 	double r11 = R.col(0)(0);
-	double r12 = R.col(1)(0);
-	double r13 = R.col(2)(0);
+	//double r12 = R.col(1)(0);
+	//double r13 = R.col(2)(0);
 
 	double r21 = R.col(0)(1);
-	double r22 = R.col(1)(1);
-	double r23 = R.col(2)(1);
-
+	//double r22 = R.col(1)(1);
+	//double r23 = R.col(2)(1);
 
 	double r31 = R.col(0)(2);
 	double r32 = R.col(1)(2);
 	double r33 = R.col(2)(2);
 
-	angles.x = atan2(r32,r33);
-	angles.y= atan2(-r31, sqrt(r32*r32+r33*r33));
-	angles.z = atan2(r21,r11);
+	angles.x = atan2(r32, r33);
+	angles.y = atan2(-r31, sqrt(r32 * r32 + r33 * r33));
+	angles.z = atan2(r21, r11);
 
-	if(angles.x < 0.)
+	if (angles.x < 0.)
 		angles.x += M_PI;
-	if(angles.y < 0.)
-			angles.y += M_PI;
-	if(angles.z < 0.)
-			angles.z += M_PI;
-
+	if (angles.y < 0.)
+		angles.y += M_PI;
+	if (angles.z < 0.)
+		angles.z += M_PI;
 
 }
 
@@ -857,18 +1083,17 @@ void Utils::compute_pca_alt(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pca_cloud,
 //									 ///    the signs are different and the box doesn't get correctly oriented in
 }
 
-void Utils::find_pcl_yaw(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud, Point3d& orientation){
+void Utils::find_pcl_yaw(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud,
+		Point3d& orientation) {
 	//flatten the point cloud
 	//for (PointXYZRGB& p : *pcl_cloud) {
 	//	p.z = 0;
 	//}
 	Eigen::Matrix3f eigenVectorsPCA;
-	compute_pca(pcl_cloud,eigenVectorsPCA);
+	compute_pca(pcl_cloud, eigenVectorsPCA);
 	//cout<<"Utils::find_pcl_yaw   eigenVectorsPCA="<<endl<<eigenVectorsPCA<<endl;
 
-
-
-	euler_from_R(eigenVectorsPCA,orientation);
+	euler_from_R(eigenVectorsPCA, orientation);
 	return;
 
 //	double x =eigenVectorsPCA.col(0)(0);
@@ -958,14 +1183,14 @@ void Utils::xyz_gravity_center(
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr pca_cloud(
 			new pcl::PointCloud<pcl::PointXYZRGB>);
 	for (PointXYZRGB& p : *pcl_cloud) {
-		if (p.x > 0.00001 || p.y > 0.00001 || p.x < -0.00001 || p.y < -0.00001) {
-		n++;
-		x += p.x;
-		y += p.y;
-		z += p.z;
-		if (p.z > max_z)
-			max_z = p.z;
-		//pca_cloud->points.push_back(p);
+		if (fabs(p.x) > 0.00001 || fabs(p.y) > 0.00001 ) {
+			n++;
+			x += p.x;
+			y += p.y;
+			z += p.z;
+			if (p.z > max_z)
+				max_z = p.z;
+
 		}
 
 	}
@@ -974,9 +1199,83 @@ void Utils::xyz_gravity_center(
 	y /= n;
 	z /= n;
 
-	//cout << "Utils::xyz_gravity_center x/n,y/n,z/n max_z=" << x << " " << y << " " << z <<" "<<max_z<< endl;
-	//compute_pca(pca_cloud, eigenVectors);
 
+}
+
+/*
+ * !brief Shifts the point cloud
+ *
+ */
+void Utils::shift_to_min(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud) {
+
+	double x = 999999.;
+	double y = 999999.;
+	double z = 999999.;
+
+
+	for (PointXYZRGB& p : *pcl_cloud) {
+//		if (p.x < x && p.y < y && p.z < z ) {
+//
+//			x = p.x;
+//			y = p.y;
+//			z = p.z;
+//		}
+		if (!isnan(p.x)) {
+			if (p.x < x)
+				x = p.x;
+			if (p.y < y)
+				y = p.y;
+			if (p.z < z)
+				z = p.z;
+
+		}
+
+	}
+	cout << " min at " << x << " " << y << " " << z << endl;
+
+	for (PointXYZRGB& p : *pcl_cloud) {
+		p.x -= x;
+		p.y -= y;
+		p.z -= z;
+	}
+}
+
+/*
+ * !brief Shifts the point cloud
+ *
+ */
+void Utils::shift_to_min(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud, std::vector<int>& indices) {
+
+	double x = 9999.;
+	double y = 9999.;
+	double z = 9999.;
+
+	for (int index : indices) {
+
+		PointXYZRGB& p = pcl_cloud->points[index];
+
+		if (p.x < x)
+			x = p.x;
+		if (p.y < y)
+			y = p.y;
+		if (p.z < z)
+			z = p.z;
+
+	}
+	cout << " min at " << x << " " << y << " " << z << endl;
+
+	if( x > 0.)
+		x = -x;
+	if( y > 0.)
+			y = -y;
+	if( z > 0.)
+			z = -z;
+	for (int index : indices) {
+		PointXYZRGB& p = pcl_cloud->points[index];
+		p.x -= x;
+		p.y -= y;
+		p.z -= z;
+	}
 }
 
 void Utils::mask_to_pcl_indices(Mat& mask, vector<int>& indices) {
@@ -991,6 +1290,27 @@ void Utils::mask_to_pcl_indices(Mat& mask, vector<int>& indices) {
 
 		}
 	}
+}
+
+void Utils::compute_contours(cv::Mat& mask,vector<vector<Point> >& contours){
+
+	vector<Vec4i> hierarchy;
+
+	/// Find contours
+	findContours(mask, contours, hierarchy, cv::RETR_CCOMP,
+			CV_CHAIN_APPROX_NONE, Point(0, 0));
+}
+
+void Utils::sub_sample(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud){
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+	pcl::UniformSampling<PointXYZRGB> uni_sampling;
+	uni_sampling.setInputCloud(src_cloud);
+	uni_sampling.setRadiusSearch(0.02f);
+	uni_sampling.filter(*tmp_cloud);
+	dst_cloud = tmp_cloud;
+
+
+
 }
 
 void Utils::image_to_pcl(Mat& img, Mat& depth,
@@ -1033,6 +1353,21 @@ void Utils::image_to_pcl(Mat& img, Mat& depth,
 
 }
 
+void Utils::scale_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud,
+		float factor) {
+
+	register int depth_idx = 0;
+
+	for (unsigned int u = 0; u < pcl_cloud->width; ++u)
+		for (unsigned int v = 0; v < pcl_cloud->height; ++v, ++depth_idx) {
+			pcl::PointXYZRGB& pt = pcl_cloud->points[depth_idx];
+
+			pt.z *= factor;
+			pt.x *= factor;
+			pt.y *= factor;
+		}
+}
+
 /*
  *! brief Creates a colour point cloud for a given image and depth map
  *
@@ -1066,8 +1401,8 @@ void Utils::image_to_pcl(Mat& img, Mat& depth,
 	float constant = 1.0f / 1368.3;
 	//  register int centerX = (pcl_cloud->width >> 1);
 	//  int centerY = (pcl_cloud->height >> 1);
-	register int centerX = (pcl_cloud->width / 2);
-	int centerY = (pcl_cloud->height / 2);
+	//register int centerX = (pcl_cloud->width / 2);
+	//int centerY = (pcl_cloud->height / 2);
 	//cout << " centerX: " << centerX << " centerY: " << centerY << endl;
 
 	register int depth_idx = 0;

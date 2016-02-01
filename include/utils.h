@@ -47,6 +47,11 @@ public:
 	virtual ~Utils() {
 	}
 
+
+	std::string stringify(double x);
+
+	std::string stringify(int x);
+
 	int parse_args(int argc, char **argv, double& thres, int& scales, int& starting_scale, int& propagation_scale,  int& gpu,string& img_path, string& output_path);
 
 	int parse_args(int argc, char **argv, double& thres, int& scales, int& starting_scale, int& propagation_scale, int& gpu,string& img_path, string& output_path, string& svm_path);
@@ -83,12 +88,23 @@ public:
 
 	void remove_outliers(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud);
 
+	void remove_zeros(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src,std::vector<int>& indices);
+
 	void subtract_gravity_center(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src, Point3d& gravity_center);
+
+	void subtract_gravity_center(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src,std::vector<int>& indices, Point3d& gravity_center);
+
+
+	void build_mesh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud, pcl::PolygonMesh::Ptr& mesh1);
+
+	void display_mesh(pcl::PolygonMesh::Ptr& mesh);
 
 	void display_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,pcl::PointCloud<pcl::Normal>::Ptr normals,string& text);
 
 
 	void display_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud, string& text);
+
+	void display_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,std::vector<int>& indices,string& text);
 
 	void display_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud, Eigen::Matrix3f& eigenVectors, string& text);
 
@@ -97,8 +113,19 @@ public:
 	void find_pcl_yaw(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud, Point3d& orientation);
 
 
+	void compute_contours(cv::Mat& mask,vector<vector<Point> >& contours);
+
+	void sub_sample(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud);
+
 	void find_detection_yaw(cv::Mat& mask, cv::Mat& img,cv::Mat& depth, Point3d& position,Point3d& orientation);
 
+	void shift_to_min(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud);
+
+	void shift_to_min(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud, std::vector<int>& indices);
+
+	void rotate_eigen_axes(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud);
+
+	void obtain_eigen_axes(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud, Eigen::Matrix4f& projectionTransform);
 
 	void compute_bounding_box(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,Point3d& dimensions_3d);
 
@@ -110,6 +137,8 @@ public:
 	void mask_to_pcl_indices(cv::Mat& mask,vector<int>& indices );
 
 
+	void scale_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud, float factor);
+
 	void image_to_pcl(cv::Mat& img, cv::Mat& depth,
 			pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud, int cx, int cy, Rect& rect);
 
@@ -118,19 +147,21 @@ public:
 
 	void prune_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_dst);
 
+	void nanify_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_dst);
 
-void tick() {
-	t0 = high_resolution_clock::now();
-}
 
-void tock(string& text) {
-	tf = std::chrono::high_resolution_clock::now();
-	duration<double> time_span = duration_cast<duration<double>>(tf - t0);
+	void tick() {
+		t0 = high_resolution_clock::now();
+	}
 
-	cout << text << " took: " << time_span.count() * 1000 << " ms" << endl;
-}
+	void tock(string& text) {
+		tf = std::chrono::high_resolution_clock::now();
+		duration<double> time_span = duration_cast<duration<double>>(tf - t0);
+
+		cout << text << " took: " << time_span.count() * 1000 << " ms" << endl;
+	}
 private:
-high_resolution_clock::time_point t0, tf;
+	high_resolution_clock::time_point t0, tf;
 };
 
 #endif /* INCLUDE_UTILS_H_ */

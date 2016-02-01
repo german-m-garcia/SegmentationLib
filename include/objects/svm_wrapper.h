@@ -63,6 +63,10 @@ class SVMWrapper {
 
   void trainSVM();
 
+  void save_current_data(std::string& path);
+
+  void load_current_data(std::string& path);
+
 
  private:
 

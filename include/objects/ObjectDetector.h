@@ -15,9 +15,12 @@
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/gpu/kinfu/kinfu.h>
+#include <pcl/features/from_meshes.h>
+#include <pcl/surface/organized_fast_mesh.h>
+#include "utils.h"
 
 
-using namespace mrsmap;
+//using namespace mrsmap;
 
 
 typedef pcl::PointCloud<pcl::PointXYZ>::Ptr PlainCloudptr;
@@ -38,10 +41,17 @@ using Vec4i = cv::Vec4i;
 class ObjectDetector {
 public:
 	ObjectDetector();
-	ObjectDetector(int mode,string model_path);
-	ObjectDetector(int mode,string model_path, string object_name);
+	ObjectDetector(int mode,string svm_path,string model_path);
+	ObjectDetector(int mode,string svm_path,string model_path, string object_name);
 	virtual ~ObjectDetector();
 
+	void create_dirs();
+
+	void load_current_data();
+
+	void save_current_data();
+
+	void test_pcl_segments(cv::Mat&img, cv::Mat& depth_float,vector<Segment*>& fg_segments);
 
 	void add_selected_segments(Mat&img, Mat& depth_float,vector<Segment*>& fg_segments,vector<Segment*>& bg_segments);
 
@@ -59,6 +69,9 @@ public:
 	 bool test_data(std::vector<Segment*>& test_segments,Mat& original_img, Mat& original_depth,vector<Mat>& masks, Mat& debug);
 
 	 bool test_data(std::vector<Segment*>& test_segments,Mat& original_img, Mat& original_depth,vector<Mat>& masks, Mat& debug, vector<Point3d>& slc_position, vector<Point3d>& slc_orientation);
+
+
+	 void normalize_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud,Point3d& gravity_center);
 
 	 void draw_contours_detections(Mat& src,Mat& mask, Mat& debug);
 
@@ -84,10 +97,11 @@ private:
 	std::vector< cv::Mat> depths_;
 
 	std::vector<Cloudptr> point_clouds;
-	//need an SVM?
+	//svm classifier for classifying segments
 	SVMWrapper svm;
 	//a path to where the data can be stored and debugged
 	std::string model_path_;
+	std::string svm_path_;
 	bool train_, test_;
 
 	const static int dimensions_img = 300;
@@ -101,6 +115,11 @@ private:
 	std::string object_name_;
 
 	MRSMapWrap mrsmap;
+
+	Utils utils_;
+
+	//path to the features data of the SVM that we might want to temporally store
+	std::string svm_tmp_data;
 
 
 	void display_cloud(PlainCloudptr& cloud);

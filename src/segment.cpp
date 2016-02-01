@@ -61,15 +61,25 @@ Segment::~Segment() {
 }
 
 Segment::Segment(const Segment &obj) :
-		visualFeatures_(obj.visualFeatures_), mat_original_colour_(
-				obj.mat_original_colour_), random_colour_mat_(
-				obj.random_colour_mat_), binary_mat_(obj.binary_mat_), contour_(
-				obj.contour_), random_colour_(obj.random_colour_), original_(
-				obj.original_), histImage_(obj.histImage_), h_hist(obj.h_hist), s_hist(
-				obj.s_hist), v_hist(obj.v_hist), mask_(obj.mask_), class_label(
+		class_label(
 				obj.class_label), bound_rect(obj.bound_rect), pcl_cloud_(
-				new pcl::PointCloud<pcl::PointXYZRGB>), segment_size_(
+				new pcl::PointCloud<pcl::PointXYZRGB>(*obj.pcl_cloud_)), segment_size_(
 				obj.segment_size_) {
+
+
+	visualFeatures_ = obj.visualFeatures_.clone();
+	mat_original_colour_ = 	obj.mat_original_colour_.clone();
+	random_colour_mat_ = 	obj.random_colour_mat_.clone();
+	binary_mat_ = obj.binary_mat_.clone();
+	contour_ =	obj.contour_;
+	random_colour_ = obj.random_colour_.clone();
+	original_ = obj.original_.clone();
+	histImage_ =obj.histImage_.clone();
+	h_hist = obj.h_hist.clone();
+	s_hist = obj.s_hist.clone();
+	v_hist = obj.v_hist.clone();
+	mask_ = obj.mask_.clone();
+
 	// body of constructor
 	pca_data_ = Mat::zeros(1, 4, CV_32FC1);
 	huMat_ = Mat::zeros(1, 7, CV_32FC1);
@@ -89,6 +99,23 @@ void Segment::colour_this_segment(Mat& dst) {
 
 }
 
+Segment operator+(const Segment& segment_1,const Segment& segment_2)
+{
+    Segment added_segment(segment_1);
+    added_segment.binary_mat_ += segment_2.binary_mat_;
+    added_segment.mat_original_colour_ += segment_2.mat_original_colour_;
+    added_segment.random_colour_mat_ += segment_2.random_colour_mat_;
+
+
+    //recompute the contour
+    vector<vector<Point> > contours;
+    compute_contours(added_segment.binary_mat_,contours);
+    added_segment.contour_ = contours[0];
+
+
+    return added_segment;
+}
+
 /*
  * !brief Masks the input point_cloud and normals according to the
  * pixels that are active for this segment. The point_cloud is
@@ -102,17 +129,21 @@ void Segment::add_precomputed_pcl(
 	Utils utils;
 	Mat mask;
 
+	//sub-sample the point cloud
+	//utils.sub_sample(pcl_cloud,pcl_cloud);
+
 	resize(binary_mat_, mask, Size(pcl_cloud->width, pcl_cloud->height));
 	utils.mask_to_pcl_indices(mask, pcl_indices_);
 	pcl_cloud_.reset(
 			new pcl::PointCloud<pcl::PointXYZRGB>(*pcl_cloud.get(),
 					pcl_indices_));
-	//string text("filtered cloud");
-	//utils.tick();
+
+
 	utils.prune_pcl(pcl_cloud_,pcl_cloud_);
-	//utils.tock(text);
-	normals_.reset(
-			new pcl::PointCloud<pcl::Normal>(*normals.get(), pcl_indices_));
+
+
+	//normals_.reset(
+	//		new pcl::PointCloud<pcl::Normal>(*normals.get(), pcl_indices_));
 
 
 	double max_z = 0;
@@ -122,11 +153,12 @@ void Segment::add_precomputed_pcl(
 	utils.subtract_gravity_center(pcl_cloud_, gravity_center);
 	Point3d dimensions_3d(0.,0.,0.);
 
+	const double normalisation_3d = 100.;
 	utils.compute_bounding_box(pcl_cloud_,dimensions_3d);
 	dimensions3DMat_.create(1,3,CV_32FC1);
-	dimensions3DMat_.at<float>(0,0) = dimensions_3d.x;
-	dimensions3DMat_.at<float>(0,1) = dimensions_3d.y;
-	dimensions3DMat_.at<float>(0,2) = dimensions_3d.z;
+	dimensions3DMat_.at<float>(0,0) = dimensions_3d.x/normalisation_3d;
+	dimensions3DMat_.at<float>(0,1) = dimensions_3d.y/normalisation_3d;
+	dimensions3DMat_.at<float>(0,2) = dimensions_3d.z/normalisation_3d;
 
 }
 
@@ -200,12 +232,22 @@ void Segment::addPcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud) {
 
 }
 
+/*
+ * !brief Computes the available features
+ * for this segment:
+ * - HSV histogram (1 x [3*NHISTOGRAMBINS] = 1 x 96)
+ * - Hu moments (1x7)
+ * - PCA (1 x 4)
+ * and stores the results as a 1xN matrix in visualFeatures_
+ *
+ *
+ */
 void Segment::computeFeatures() {
 
 	if(dimensions3DMat_.cols != 0){
 		computeHistogram();
 		computeHuMoments();
-		//cout <<"dimensions3DMat_="<<dimensions3DMat_<<endl;
+		cout <<"dimensions3DMat_="<<dimensions3DMat_<<endl;
 		visualFeatures_ = Mat(1,
 				NUMBER_VISUAL_FEATS + huMat_.cols + dimensions3DMat_.cols, CV_32FC1);
 		vector<Mat> vectorFeats = { h_hist.t(), s_hist.t(), v_hist.t(), huMat_,
@@ -283,12 +325,12 @@ void Segment::computeHistogram() {
 			uniform, accumulate);
 
 //		//remove NaNs
-//		Mat mask_h = Mat(h_hist != h_hist);
-//		h_hist.setTo(0,mask_h);
-//		Mat mask_s = Mat(s_hist != s_hist);
-//		s_hist.setTo(0,mask_s);
-//		Mat mask_v = Mat(v_hist != v_hist);
-//		v_hist.setTo(0,mask_v);
+	Mat mask_h = Mat(h_hist != h_hist);
+	h_hist.setTo(0,mask_h);
+	Mat mask_s = Mat(s_hist != s_hist);
+	s_hist.setTo(0,mask_s);
+	Mat mask_v = Mat(v_hist != v_hist);
+	v_hist.setTo(0,mask_v);
 
 	// Draw the histograms for H, S and V
 	int hist_w = 120;
@@ -390,7 +432,6 @@ void Segment::computePCA(const vector<Point> &pts) {
 	pca_data_.at<float>(0, 1) = modules_[1] / binary_mat_.cols;
 	pca_data_.at<float>(0, 2) = orientations_[0] / (360.);
 	pca_data_.at<float>(0, 3) = orientations_[1] / (360.);
-	;
 
 }
 

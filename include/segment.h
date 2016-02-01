@@ -50,6 +50,8 @@ public:
 	void addPcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud);
 
 
+	friend Segment operator+(const Segment& segment_1,const Segment& segment_2);
+
 	const Mat& getImg() const {
 		return mat_original_colour_;
 	}
