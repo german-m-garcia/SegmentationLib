@@ -1294,11 +1294,11 @@ void Utils::mask_to_pcl_indices(Mat& mask, vector<int>& indices) {
 
 void Utils::compute_contours(cv::Mat& mask,vector<vector<Point> >& contours){
 
-	vector<Vec4i> hierarchy;
+	//vector<Vec4i> hierarchy;
 
 	/// Find contours
-	findContours(mask, contours, hierarchy, cv::RETR_CCOMP,
-			CV_CHAIN_APPROX_NONE, Point(0, 0));
+	//findContours(mask, contours, hierarchy, cv::RETR_CCOMP,
+	//		CV_CHAIN_APPROX_NONE, Point(0, 0));
 }
 
 void Utils::sub_sample(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud){

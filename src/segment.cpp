@@ -72,7 +72,7 @@ Segment::Segment(const Segment &obj) :
 	random_colour_mat_ = 	obj.random_colour_mat_.clone();
 	binary_mat_ = obj.binary_mat_.clone();
 	contour_ =	obj.contour_;
-	random_colour_ = obj.random_colour_.clone();
+	random_colour_ = obj.random_colour_;
 	original_ = obj.original_.clone();
 	histImage_ =obj.histImage_.clone();
 	h_hist = obj.h_hist.clone();
@@ -109,7 +109,7 @@ Segment operator+(const Segment& segment_1,const Segment& segment_2)
 
     //recompute the contour
     vector<vector<Point> > contours;
-    compute_contours(added_segment.binary_mat_,contours);
+    //compute_contours(added_segment.binary_mat_,contours);
     added_segment.contour_ = contours[0];
 
 
