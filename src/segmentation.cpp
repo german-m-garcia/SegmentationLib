@@ -269,10 +269,13 @@ void Segmentation::segment_pyramid(double thres) {
 			//edge_tests(bilateral_filtered_pyramid_[i], thres);
 
 			//cout <<"processing scale "<<i<<endl;
+
+
+
 			scharr_segment(bilateral_filtered_pyramid_[i], contours_mat,
 					gradient, gray_gradient, thres, i, true);
 			output_segments_pyramid_[i] = contours_mat;
-			//thres -= 0.01;
+
 
 			if (DEBUG) {
 				string name("image pyramid - scale ");

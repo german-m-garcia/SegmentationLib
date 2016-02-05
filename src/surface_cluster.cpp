@@ -174,6 +174,11 @@ void ClusterSurfaces::readData(std::string filename) {
   pclAddOns::ClipDepthImage(pcl_cloud);
 }
 
+void ClusterSurfaces::readData(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud){
+	pcl_cloud = src_cloud;
+	pclAddOns::ConvertPCLCloud(pcl_cloud,pcl_cloud_l);
+}
+
 void ClusterSurfaces::readData(std::string rgb_filename,
                                std::string depth_filename) {
 

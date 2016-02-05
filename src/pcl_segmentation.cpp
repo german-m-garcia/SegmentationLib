@@ -345,7 +345,7 @@ void PCLSegmentation::lccpSegment(Mat& src,
 
 	show_patches(outMat, lccp_labeled_cloud);
 
-	read_segments(src, outMat);
+	//read_segments(src, outMat);
 
 /// Creating Colored Clouds and Output
 //	if (lccp_labeled_cloud->size() == input_cloud_ptr->size()) {
@@ -378,6 +378,8 @@ void PCLSegmentation::lccpSegment(Mat& src,
 
 }
 
+
+
 /*
  * Vienna Surface Patches
  *
@@ -408,6 +410,21 @@ void PCLSegmentation::surfacePatches(Mat& src,
  */
 
 
+
+void PCLSegmentation::remote_ms_segment(Mat& src, Mat& dst) {
+	Mat img2;
+	int sp = 15, sr = 40;
+	//cout <<">bilateralFilter..."<<endl;
+
+	cv::imwrite("/home/martin/workspace/EGBISegmentation/build/input.png",src);
+	cout <<" saved input image for segmentation"<<endl;
+	int rc =system (" ~/workspace/EGBISegmentation/build/ms_segment ~/workspace/EGBISegmentation/build/input.png 15 15 30 ~/workspace/EGBISegmentation/build/out.png");
+	cout <<" system call returned "<<rc<<endl;
+	//open the segmentation result
+	dst = imread("/home/martin/workspace/EGBISegmentation/build/out.png",CV_LOAD_IMAGE_COLOR);
+	read_segments(src,dst);
+
+}
 
 void PCLSegmentation::mssegment(Mat& src, Mat& dst) {
 	Mat img2;

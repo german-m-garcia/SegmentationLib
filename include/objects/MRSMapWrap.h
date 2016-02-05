@@ -50,16 +50,22 @@ public:
 	virtual ~MRSMapWrap();
 
 	void show();
-	void addPcl(cv::Mat& src, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,Point3d& gravity_center);
+	void addPcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud);
 
 	double icp(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_1, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_2,Eigen::Matrix4f& transform);
 	double generalized_icp(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_1, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_2,Eigen::Matrix4f& transform);
 	//double register_mrsmaps(boost::shared_ptr<MultiResolutionSurfelMap>& model_1, boost::shared_ptr<MultiResolutionSurfelMap>& model_2,Point3d& gravity_center_1,Point3d& gravity_center_2,Eigen::Matrix4d& transform);
 
 	void pairAlign (pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src, pcl::PointCloud<pcl::PointXYZRGB>::Ptr&, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& output, Eigen::Matrix4f &final_transform, bool downsample = false);
-	double test_cloud(cv::Mat& src,	pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,Point3d& gravity_center);
+	double test_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,Eigen::Matrix4f& transform);
+	double test_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud);
 	void initialize(cv::Mat& src, cv::Mat& depth, std::vector<Segment*>& segments);
 	void initialize(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pointCloudIn);
+
+	const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& getModelCloud() const {
+		return model_cloud_;
+	}
+
 private:
 
 	pcl::PointCloud< pcl::PointXYZRGB >::Ptr model_cloud_;

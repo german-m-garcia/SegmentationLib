@@ -70,6 +70,7 @@ public:
 	void surfacePatches(Mat& src,pcl::PointCloud<pcl::PointXYZRGB>::Ptr input_cloud_ptr,
 			Mat& outMat);
 
+	void remote_ms_segment(Mat& src, Mat& dst);
 
 	void mssegment(Mat& src, Mat& dst);
 

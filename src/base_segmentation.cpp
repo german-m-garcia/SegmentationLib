@@ -57,7 +57,7 @@ void BaseSegmentation::clean_data() {
 Segment* BaseSegmentation::get_segment_at_fast(int row, int col) {
 
 	int id = (int) component_id.at<uint16_t>(row, col);
-	//cout <<"id="<<id<<endl;
+	cout <<"id="<<id<<endl;
 	if (id == 0)
 		return nullptr;
 	return mapSegments[id];
@@ -137,14 +137,19 @@ void BaseSegmentation::read_segments(Mat& original, Mat& segmentation_mat) {
 	map<uint32_t, int> labels;
 	int labelcount = 0;
 
-	Mat hsv;
-	cv::cvtColor(original, hsv, CV_BGR2HSV);
+//	Mat hsv;
+//	cv::cvtColor(original, hsv, CV_BGR2HSV);
 
 	//go through every pixel
 	for (int i = 0; i < segmentation_mat.rows; i++) {
 		for (int j = 0; j < segmentation_mat.cols; j++) {
 			cv::Vec3b& label = segmentation_mat.at<cv::Vec3b>(i, j);
 			cv::Vec3b& colour = original.at<cv::Vec3b>(i, j);
+			if(label[0] == 0 && label[1] == 0 && label[2] == 0){
+				label[0] == 1;
+				label[1] == 1;
+				label[2] == 1;
+			}
 			uint32_t intLabel = label[2] * 1000000 + label[1] * 1000 + label[0];
 			int componentId = get_label(labels, intLabel);
 			if (componentId == -1) {
@@ -152,13 +157,13 @@ void BaseSegmentation::read_segments(Mat& original, Mat& segmentation_mat) {
 				labels[intLabel] = labelcount;
 				componentId = labels[intLabel];
 				labelcount++;
-				//cout <<"--------------------- new component id: "<<labels[intLabel]<<" of colour: "<<intLabel<<endl;
+				//cout <<"--------------------- new component id: "<<labels[intLabel]<<" of colour: "<<label<<endl;
 
 				component_id.at<uint16_t>(i, j) = (uint16_t) componentId;
 				//cout << (int)component_id.at<uint16_t>(i,j)<<" ";
-				Segment* segment = new Segment(hsv);
+				Segment* segment = new Segment(original);
 				cv::Point2i point(i, j);
-				segment->addPoint(point, colour);
+				segment->addPoint(point, label);
 				segments.push_back(segment);
 				mapSegments[componentId] = segment;
 
@@ -168,13 +173,61 @@ void BaseSegmentation::read_segments(Mat& original, Mat& segmentation_mat) {
 				component_id.at<uint16_t>(i, j) = (uint16_t) componentId;
 				//cout << (int)component_id.at<uint16_t>(i,j)<<" ";
 				cv::Point2i point(i, j);
-				mapSegments[componentId]->addPoint(point, colour);
+				mapSegments[componentId]->addPoint(point, label);
 
 			}
 
 		}
 
 	}
+	vector<Segment*> segments_2;
+
+	//now iterate over the created segments and fill the remaining Mat attributes
+	for(Segment * segment : segments){
+		cv::Scalar colour = Scalar(rand() & 255, rand() & 255, rand() & 255);
+
+		Mat original_segment = segment->getMatOriginalColour().clone();
+		Mat binary;
+		cv::cvtColor(original_segment,binary,CV_BGR2GRAY);
+		vector<Vec4i> hierarchy;
+		vector<Vec4i> hierarchy_best;
+		vector<vector<Point> > contours;
+
+		cv::findContours(binary, contours, hierarchy, RETR_CCOMP,
+				CHAIN_APPROX_NONE);
+
+		if(contours.size() == 0){
+//
+//			for(int i=0;i<original_segment.rows;i++){
+//				for(int j=0;j<original_segment.cols;j++){
+//					Vec3b& value = original_segment.at<Vec3b>(i,j);
+//					if(value[0]>0 || value[1]>0 || value[2]>0){
+//						cout <<" one value != 0: "<<value<<endl;
+//						original_segment.at<Vec3b>(i,j) = Vec3b(255,255,255);
+//					}
+//				}
+//			}
+
+//			cout <<" problematic segment has this many points="<<segment->getPoints().size()<<endl;
+//			imshow("binary",binary*255);
+//			imshow("original_segment",original_segment);
+//			waitKey(0);
+			continue;
+		}
+
+		Rect bounding_rect = cv::boundingRect(contours[0]);
+		Mat sub_mat_original = original(bounding_rect);
+		Mat sub_mat_segment = original_segment(bounding_rect);
+
+		int segment_size = cv::contourArea(contours[0]);
+		segment->reset(sub_mat_original, sub_mat_segment,
+				binary, contours[0], bounding_rect, segment_size,
+				Vec3b(colour[0], colour[1], colour[2]));
+		segments_2.push_back(segment);
+
+	}
+	segments.swap(segments_2);
+
 	for (Segment* segment : segments)
 		segment->computeFeatures();
 

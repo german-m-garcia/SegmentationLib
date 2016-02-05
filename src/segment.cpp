@@ -18,9 +18,15 @@ RNG Segment::rng = RNG();
 
 Segment::Segment(Mat& original) :
 		random_colour_(rng(256), rng(256), rng(256)), original_(original), pcl_cloud_(
-				new pcl::PointCloud<pcl::PointXYZRGB>) {
+				new pcl::PointCloud<pcl::PointXYZRGB>),
+				eigen_vecs(2),
+				eigen_val(2),
+				orientations_(2),
+				modules_(2){
 	mat_original_colour_ = Mat::zeros(original.rows, original.cols, CV_8UC3);
 	random_colour_mat_ = Mat::zeros(original.rows, original.cols, CV_8UC3);
+	pca_data_ = Mat::zeros(1, 4, CV_32FC1);
+	huMat_ = Mat::zeros(1, 7, CV_32FC1);
 
 }
 
@@ -52,6 +58,50 @@ Segment::Segment(Mat& original, Mat& segment_mat, Mat& binary_original,
 //	else
 //		computePCA(contour_);
 	computeFeatures();
+
+}
+
+
+/*
+ *
+ *
+ *
+ * //the segment in the original colour in reduced size
+	Mat mat_original_colour_;
+	//the segment with a random colour in reduced size
+	Mat random_colour_mat_;
+	//the segment in binary in the original size
+	Mat binary_mat_;
+	//the contour points
+	vector<Point2i> contour_;
+	//the random colour
+	Vec3b random_colour_;
+	//the original colour img
+	Mat original_;
+ *
+ *
+ */
+
+void Segment::reset(Mat& original, Mat& segment_mat, Mat& binary_original,
+		vector<Point2i>& contour, Rect& rect, int segment_size, Vec3b colour)
+		 {
+
+	random_colour_mat_ = segment_mat;
+	binary_mat_ = binary_original;
+	contour_ = contour;
+	random_colour_ = colour;
+	bound_rect= rect;
+	pcl_cloud_ = pcl::PointCloud<pcl::PointXYZRGB>::Ptr(new pcl::PointCloud<pcl::PointXYZRGB>);
+	segment_size_= segment_size;
+
+
+	pca_data_ = Mat::zeros(1, 4, CV_32FC1);
+	huMat_ = Mat::zeros(1, 7, CV_32FC1);
+	mat_original_colour_ = Mat::zeros(original.rows, original.cols, CV_8UC3);
+	binary_mat_ = binary_mat_ > 0;
+	original.copyTo(mat_original_colour_, binary_mat_(bound_rect));
+
+
 
 }
 
@@ -131,6 +181,7 @@ void Segment::add_precomputed_pcl(
 
 	//sub-sample the point cloud
 	//utils.sub_sample(pcl_cloud,pcl_cloud);
+
 
 	resize(binary_mat_, mask, Size(pcl_cloud->width, pcl_cloud->height));
 	utils.mask_to_pcl_indices(mask, pcl_indices_);
@@ -247,7 +298,7 @@ void Segment::computeFeatures() {
 	if(dimensions3DMat_.cols != 0){
 		computeHistogram();
 		computeHuMoments();
-		cout <<"dimensions3DMat_="<<dimensions3DMat_<<endl;
+		//cout <<"dimensions3DMat_="<<dimensions3DMat_<<endl;
 		visualFeatures_ = Mat(1,
 				NUMBER_VISUAL_FEATS + huMat_.cols + dimensions3DMat_.cols, CV_32FC1);
 		vector<Mat> vectorFeats = { h_hist.t(), s_hist.t(), v_hist.t(), huMat_,
@@ -265,17 +316,18 @@ void Segment::computeFeatures() {
 		hconcat(vectorFeats, visualFeatures_);
 	} else {
 		computeHistogram();
-		computePCA(contour_);
+		//computePCA(contour_);
 		computeHuMoments();
-		visualFeatures_ = Mat(1, NUMBER_VISUAL_FEATS, CV_32FC1);
+		visualFeatures_ = Mat(1, NUMBER_VISUAL_FEATS+7, CV_32FC1);
 		vector<Mat> vectorFeats = { h_hist.t(), s_hist.t(), v_hist.t(),
-				pca_data_, huMat_ };
+				/*pca_data_,*/ huMat_ };
 		hconcat(vectorFeats, visualFeatures_);
 	}
 
 }
 
 void Segment::computeHuMoments() {
+
 
 	Moments moment = cv::moments(mask_, true);
 	double hu[7];

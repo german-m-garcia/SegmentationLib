@@ -64,6 +64,11 @@ public:
 
 	void merge_two_bounding_rects(Rect& rec1,Rect& rec2, Rect& res);
 
+	void cropped_pcl_from_mask(Mat& img, Mat& depth,
+			Mat& mask,
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud, Mat& tmp_img,
+			Mat& tmp_depth);
+
 	void cropped_pcl_from_segments(cv::Mat& img, cv::Mat& depth,vector<Segment*>&segments,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,cv::Mat& tmp_img,cv::Mat& tmp_depth);
 
 	void compute_normals(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
@@ -141,6 +146,8 @@ public:
 
 	void image_to_pcl(cv::Mat& img, cv::Mat& depth,
 			pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud, int cx, int cy, Rect& rect);
+
+	void copy_clouds(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud_1,pcl::PointCloud<pcl::PointXYZRGBA>::Ptr& pcl_cloud_2);
 
 	void image_to_pcl(cv::Mat& img, cv::Mat& depth,
 			pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud);

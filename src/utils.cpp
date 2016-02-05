@@ -71,6 +71,7 @@ string Utils::get_file_name(const string& s) {
 	return ("");
 }
 
+
 int Utils::parse_args(int argc, char **argv, double& thres, int& scales,
 		int& starting_scale, int& propagation_scale, int& gpu, string& img_path,
 		string& output_path) {
@@ -416,43 +417,16 @@ void Utils::cluster(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud) {
 	return;
 }
 
-/*
- * !brief Computes the point cloud that corresponds only to the input vector of segments
- *
- * @img [input] image of the full scene
- * @depth [input] depth map of the full scene
- * @segments [input] vector of the object's segments
- * @cloud [output] the point cloud corresponding to the segments
- * @tmp_img [output] the cropped image corresponding to the object
- * @tmp_depth [output] the cropped depth map corresponding to the object
- *
- *
- */
-void Utils::cropped_pcl_from_segments(Mat& img, Mat& depth,
-		vector<Segment*>&segments,
+void Utils::cropped_pcl_from_mask(Mat& img, Mat& depth,
+		Mat& mask,
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud, Mat& tmp_img,
 		Mat& tmp_depth) {
 
-	Size size_segments = segments[0]->getBinaryMat().size();
-	cout << " target size=" << size_segments << endl;
-	cout << " current size=" << img.size() << endl;
 
 	Mat cropped_img, cropped_depth;
+	Mat pointsMat;
 	tmp_img = Mat::zeros(img.rows, img.cols, CV_8UC3);
 	tmp_depth = Mat::zeros(img.rows, img.cols, CV_32FC1);
-
-	Mat mask = Mat::zeros(size_segments, CV_8UC1);
-	//iterate over the segments and fill in the binary mask
-	for (Segment * seg : segments) {
-
-		mask += seg->getBinaryMat();
-
-	}
-	resize(mask, mask, img.size());
-	//REMOVE!!!!
-	//erode(mask, mask, Mat());
-
-	Mat pointsMat;
 	cv::findNonZero(mask, pointsMat);
 	Rect minRect = boundingRect(pointsMat);
 //	imshow("mask", mask);
@@ -481,6 +455,44 @@ void Utils::cropped_pcl_from_segments(Mat& img, Mat& depth,
 //	viewer.setBackgroundColor(0, 0, 0);
 //	viewer.addPointCloud < pcl::PointXYZRGB > (pruned_cloud, "sample cloud");
 //	viewer.spin();
+
+}
+
+/*
+ * !brief Computes the point cloud that corresponds only to the input vector of segments
+ *
+ * @img [input] image of the full scene
+ * @depth [input] depth map of the full scene
+ * @segments [input] vector of the object's segments
+ * @cloud [output] the point cloud corresponding to the segments
+ * @tmp_img [output] the cropped image corresponding to the object
+ * @tmp_depth [output] the cropped depth map corresponding to the object
+ *
+ *
+ */
+void Utils::cropped_pcl_from_segments(Mat& img, Mat& depth,
+		vector<Segment*>&segments,
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud, Mat& tmp_img,
+		Mat& tmp_depth) {
+
+	Size size_segments = segments[0]->getBinaryMat().size();
+	cout << " target size=" << size_segments << endl;
+	cout << " current size=" << img.size() << endl;
+
+
+
+	Mat mask = Mat::zeros(size_segments, CV_8UC1);
+	//iterate over the segments and fill in the binary mask
+	for (Segment * seg : segments) {
+
+		mask += seg->getBinaryMat();
+
+	}
+	resize(mask, mask, img.size());
+	cropped_pcl_from_mask(img,depth,mask,cloud, tmp_img,tmp_depth);
+
+
+
 }
 
 void Utils::compute_normals(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
@@ -1431,3 +1443,24 @@ void Utils::image_to_pcl(Mat& img, Mat& depth,
 
 }
 
+void Utils::copy_clouds(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud_1,pcl::PointCloud<pcl::PointXYZRGBA>::Ptr& pcl_cloud_2){
+	//pcl_cloud_2->points.resize(pcl_cloud_1->size());
+	//int i = 0;
+	for (pcl::PointXYZRGB& p : *pcl_cloud_1) {
+
+		pcl::PointXYZRGBA prgba;
+		prgba.x = p.x;
+		prgba.y = p.y;
+		prgba.z = p.z;
+
+		prgba.r = p.r;
+		prgba.g = p.g;
+		prgba.b = p.b;
+		prgba.a = 255;
+		pcl_cloud_2->points.push_back(prgba);
+		//i++;
+	}
+	pcl_cloud_2->width = pcl_cloud_1->width;
+	pcl_cloud_2->height = pcl_cloud_1->height;
+	cout <<"pcl_cloud_2 #points="<<pcl_cloud_2->points.size();
+}

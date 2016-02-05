@@ -39,6 +39,11 @@ public:
 	Segment(Mat& original,Mat& segment_mat, Mat& binary_original,vector<Point2i>& contour, Rect& rect, int segment_size, Vec3b colour);
 	Segment (const Segment &obj);
 	virtual ~Segment();
+
+
+	void reset(Mat& original, Mat& segment_mat, Mat& binary_original,
+			vector<Point2i>& contour, Rect& rect, int segment_size, Vec3b colour);
+
 	void addPoint(const Point2i& point,const Vec3b& colour);
 
 	void computeFeatures();
@@ -137,6 +142,10 @@ public:
 
 	const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& getPclCloud() const {
 		return pcl_cloud_;
+	}
+
+	const vector<Point2i>& getPoints() const {
+		return points;
 	}
 
 	Mat visualFeatures_;

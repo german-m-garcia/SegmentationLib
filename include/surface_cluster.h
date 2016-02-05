@@ -34,6 +34,7 @@ class ClusterSurfaces {
   //void setInputCloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
   void readData(std::string filename);
   void readData(std::string rgb_filename, std::string depth_filename);
+  void readData(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud);
 
  public:
   ClusterSurfaces();

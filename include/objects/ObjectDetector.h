@@ -20,6 +20,10 @@
 #include "utils.h"
 
 
+#define THRESHOLD_SCORE_GICP 0.05
+
+#define THRESHOLD_POSITIVE_CLASS 0.1
+
 //using namespace mrsmap;
 
 
@@ -36,7 +40,12 @@ using Size = cv::Size;
 using Vec4i = cv::Vec4i;
 
 
-
+class Detection {
+public:
+	Cloudptr cloud; //the object model point cloud in the current camera frame of reference
+	double confidence; //the confidence about this detection
+	Eigen::Matrix4f transform; //the transformation from the model to the current camera frame of reference
+};
 
 class ObjectDetector {
 public:
@@ -66,16 +75,24 @@ public:
 	 void unify_detections(Mat& mask);
 
 
-	 bool test_data(std::vector<Segment*>& test_segments,Mat& original_img, Mat& original_depth,vector<Mat>& masks, Mat& debug);
+	 int get_detections(std::vector<Segment*>& test_segments,
+	 		Mat& original_img, Mat& original_depth, Mat& detections);
 
-	 bool test_data(std::vector<Segment*>& test_segments,Mat& original_img, Mat& original_depth,vector<Mat>& masks, Mat& debug, vector<Point3d>& slc_position, vector<Point3d>& slc_orientation);
+	 bool test_data(std::vector<Segment*>& test_segments,Mat& original_img, Mat& original_depth,vector<Mat>& masks, Mat& debug,vector<Detection>& detections_vector, bool unify = true);
+
+	 bool test_data(std::vector<Segment*>& test_segments,Mat& original_img, Mat& original_depth,vector<Mat>& masks, Mat& debug, vector<Point3d>& slc_position, vector<Point3d>& slc_orientation, bool unify = true);
 
 
 	 void normalize_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud,Point3d& gravity_center);
 
+	 void normalize_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud,Point3d& gravity_center,Eigen::Matrix4f& projectionTransform);
+
+	 void draw_contours_detections(cv::Mat& src, vector<cv::Mat>& masks,
+	 		cv::Mat& debug);
+
 	 void draw_contours_detections(Mat& src,Mat& mask, Mat& debug);
 
-	 void find_slc_bounding_box(Mat& detections, vector<Rect>& rect, vector<Mat>& masks);
+	 void split_detections_masks_rects(Mat& detections, vector<Rect>& rect, vector<Mat>& masks);
 
 	void train();
 
@@ -85,8 +102,15 @@ public:
 
 	void run_kinfu(float vsz);
 
+	void get_point_cloud_at(int i, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud);
+
+	void load_point_clouds();
+
+	int get_number_train_examples();
+
 	const static int TRAIN_MODE = 0;
 	const static int TEST_MODE = 1;
+
 private:
 
 	//need a bunch of segments for each frame
@@ -96,7 +120,7 @@ private:
 	std::vector <cv::Mat> frames_;
 	std::vector< cv::Mat> depths_;
 
-	std::vector<Cloudptr> point_clouds;
+	std::vector<Cloudptr> point_clouds_;
 	//svm classifier for classifying segments
 	SVMWrapper svm;
 	//a path to where the data can be stored and debugged
@@ -110,21 +134,28 @@ private:
 
 	float fx = 1368.30, fy = 1368.3, cx = cols/2., cy = rows/2.;
 
-	double threshold_positive_class;
+	double threshold_positive_class,threshold_score_gicp_;
+
 
 	std::string object_name_;
 
 	MRSMapWrap mrsmap;
+	vector<MRSMapWrap> mrsmaps_;
+
 
 	Utils utils_;
 
 	//path to the features data of the SVM that we might want to temporally store
 	std::string svm_tmp_data;
 
+	const static int MIN_POINTS_TO_SUBSAMPLE = 100;
+
 
 	void display_cloud(PlainCloudptr& cloud);
 
 	void display_cloud(Cloudptr& cloud);
+
+
 
 
 

@@ -11,7 +11,52 @@
 #include <pcl/filters/filter.h>
 #include <pcl/registration/icp.h>
 
-int main(int argc, char** argv) {
+#include <pcl/visualization/pcl_visualizer.h>
+
+#include <vtkSmartPointer.h>
+#include <vtkPoints.h>
+#include <vtkPointData.h>
+#include <vtkCellArray.h>
+#include <vtkUnsignedCharArray.h>
+#include <vtkFloatArray.h>
+#include <vtkPolyDataReader.h>
+#include <vtkPolyDataWriter.h>
+#include <vtkPLYReader.h>
+#include <vtkPLYWriter.h>
+#include <vtkOBJReader.h>
+#include <vtkSTLReader.h>
+#include <vtkSTLWriter.h>
+#include <boost/filesystem.hpp>
+#include "pcl/point_types.h"
+#include "pcl/point_cloud.h"
+#include "pcl/PolygonMesh.h"
+#include "pcl/pcl_macros.h"
+#include "pcl/ros/conversions.h"
+#include "pcl/io/pcd_io.h"
+
+
+#include "pcl_segmentation.h"
+
+
+int main(int argc, char ** argv) {
+
+	PCLSegmentation pcl_segmentation;
+	cv::Mat src = cv::imread("/home/martin/workspace/EGBISegmentation/build/input.png",CV_LOAD_IMAGE_COLOR);
+	cv::Mat mat_segmentation;
+	pcl_segmentation.remote_ms_segment(src, mat_segmentation);
+
+	int row = 50;
+	int col = 50;
+	Segment * seg = pcl_segmentation.get_segment_at_fast( row,  col);
+	cv::imshow("seg", seg->getMatOriginalColour());
+	cv::waitKey(0);
+
+	return 0;
+}
+
+
+
+int main__(int argc, char** argv) {
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in(
 			new pcl::PointCloud<pcl::PointXYZRGB>);
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out(

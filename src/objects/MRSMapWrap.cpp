@@ -53,15 +53,14 @@ void MRSMapWrap::show() {
 
 }
 
-void MRSMapWrap::addPcl(cv::Mat& src,
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
-		Point3d& gravity_center) {
+void MRSMapWrap::addPcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud) {
 
 	model_cloud_ = pcl::PointCloud<pcl::PointXYZRGB>::Ptr(new  pcl::PointCloud<pcl::PointXYZRGB>);
 	// Create the filtering object
 	pcl::VoxelGrid<pcl::PointXYZRGB> sor;
 	sor.setInputCloud(cloud);
-	sor.setLeafSize(0.01f, 0.01f, 0.01f);
+	//sor.setLeafSize(0.01f, 0.01f, 0.01f);
+	sor.setLeafSize(0.005f, 0.005f, 0.005f);
 	sor.filter(*model_cloud_);
 
 	//model_cloud_ = cloud;
@@ -123,20 +122,34 @@ void MRSMapWrap::addPcl(cv::Mat& src,
 
 }
 
-double MRSMapWrap::test_cloud(cv::Mat& src,
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
-		Point3d& gravity_center) {
+double MRSMapWrap::test_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,Eigen::Matrix4f& transform) {
 
-	Eigen::Matrix4f transform;
-	generalized_icp(cloud, model_cloud_,transform);
+
+	if(model_cloud_->size()< 20){
+		cout <<"> MRSMapWrap::test_cloud :: model_cloud.size()="<<model_cloud_->size()<<endl;
+		return 0.;
+	}
+
+	double score = generalized_icp(cloud, model_cloud_,transform);
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp_cloud(
 			new pcl::PointCloud<pcl::PointXYZRGB>);
 
 	pcl::transformPointCloud(*cloud, *tmp_cloud, transform);
 
-	//std::string text("rotated cloud");
+	cout <<"score="<<score<<endl;
+	cout <<" transform="<<endl<<transform<<endl;
+	std::string text("rotated cloud");
 	//utils_.display_cloud(tmp_cloud, text);
-	return 0.;
+
+	text = "model cloud";
+	//utils_.display_cloud(model_cloud_, text);
+	return score;
+}
+
+double MRSMapWrap::test_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud) {
+
+	Eigen::Matrix4f transform;
+	return test_cloud(cloud,transform);
 
 //	float register_start_resolution = min_resolution_;
 //	const float register_stop_resolution = 32.f * min_resolution_;
@@ -360,6 +373,14 @@ double MRSMapWrap::icp(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_1,
 
 }
 
+/*
+ * !brief Computes the Generalized ICP transform of cloud_1 to cloud_2 and returns the score
+ *
+ * @cloud_1: input point cloud
+ * @cloud_2: input point cloud
+ * @transform: the transformation
+ *
+ */
 double MRSMapWrap::generalized_icp(
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_1,
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_2,Eigen::Matrix4f& transform) {
@@ -403,7 +424,7 @@ double MRSMapWrap::generalized_icp(
 
 	// setup Generalized-ICP
 	pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> gicp;
-	gicp.setMaxCorrespondenceDistance(0.1);
+	gicp.setMaxCorrespondenceDistance(999999.0);//0.1);
 
 	gicp.setInputSource(cloud_1);
 	gicp.setInputTarget(cloud_2);
@@ -419,18 +440,20 @@ double MRSMapWrap::generalized_icp(
 	text = "cloud2";
 	//utils_.display_cloud(cloud_2,text);
 	transform = gicp.getFinalTransformation();
-	cout <<" GICP score="<<score<<" transform="<<transform<<endl;
+	//cout <<" GICP score="<<score<<endl<<" transform="<<transform<<endl;
 
 	//validate the transformation
 	pcl::registration::TransformationValidationEuclidean<pcl::PointXYZRGB, pcl::PointXYZRGB> tve;
 	tve.setMaxRange (100.005);  // 50cm
 	score = tve.validateTransformation (cloud_1, cloud_2, transform);
-	cout << "TransformationValidationEuclidean score ="<<score <<endl;
-	score = tve.validateTransformation (cloud_2, cloud_1, transform.inverse());
-	cout << "TransformationValidationEuclidean score ="<<score <<endl;
+	//cout << "TransformationValidationEuclidean score ="<<score <<endl;
+	double score_2 = tve.validateTransformation (cloud_2, cloud_1, transform.inverse());
+	//cout << "TransformationValidationEuclidean score ="<<score <<endl;
 
 
-	return score;
+	if(score > score_2)
+		return score;
+	else return score_2;
 }
 
 //double MRSMapWrap::register_mrsmaps(
