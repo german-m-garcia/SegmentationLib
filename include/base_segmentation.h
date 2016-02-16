@@ -27,9 +27,9 @@
 #include <pcl/segmentation/supervoxel_clustering.h>
 
 // The segmentation class this example is for
-#include <pcl/segmentation/lccp_segmentation.h>
+//#include <pcl/segmentation/lccp_segmentation.h>
 //restore the include above if using the latest PCL
-//#include "lccp_segmentation.h"
+#include "lccp_segmentation.h"
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>

@@ -556,14 +556,16 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 		Eigen::Matrix4f projectionTransform;
 		normalize_pcl(cloud_detection, cropped_cloud_rotated, gravity_center,projectionTransform);
 
+		string text("candidate detection");
+		utils_.display_cloud(cropped_cloud_rotated,text);
+
 		//subsample the point cloud
 		if(cropped_cloud_rotated->size() > MIN_POINTS_TO_SUBSAMPLE)
 			utils_.sub_sample(cropped_cloud_rotated, cropped_cloud_rotated);
-		if(cropped_cloud_rotated->size() < 20)
+		if(cropped_cloud_rotated->size() < 100)
 			continue;
 
-		string text("candidate detection");
-		//utils_.display_cloud(cropped_cloud_rotated,text);
+
 
 		//iterate over the stored models of the object
 		double min_score = 99999.;
@@ -590,18 +592,19 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 			masks_verified.push_back(mask);
 
 			//transform the model to the frame of reference cloud
-			Eigen::Matrix4f transform_1 = best_transform;//.inverse(); //????
+			Eigen::Matrix4f transform_1 = best_transform.inverse(); //????
 			Eigen::Matrix4f transform_2 = projectionTransform.inverse();
 			//shift the point cloud to the origin
 			Point3d gravity_shift(-gravity_center.x,-gravity_center.y,-gravity_center.z);
 			pcl::transformPointCloud(*model_cloud, *model_cloud, transform_1);
 			pcl::transformPointCloud(*model_cloud, *model_cloud, transform_2);
 			utils_.subtract_gravity_center(model_cloud, gravity_shift);
-			utils_.display_cloud(model_cloud,text);
+			//utils_.display_cloud(model_cloud,text);
 
 			Detection detection;
 			detection.cloud = model_cloud;
 			detection.confidence = min_score;
+			detection.position = gravity_center;
 			detections_vector.push_back(detection);
 		}
 

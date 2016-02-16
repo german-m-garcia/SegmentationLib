@@ -45,6 +45,7 @@ public:
 	Cloudptr cloud; //the object model point cloud in the current camera frame of reference
 	double confidence; //the confidence about this detection
 	Eigen::Matrix4f transform; //the transformation from the model to the current camera frame of reference
+	Point3d position;
 };
 
 class ObjectDetector {

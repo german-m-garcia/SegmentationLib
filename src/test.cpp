@@ -34,11 +34,78 @@
 #include "pcl/ros/conversions.h"
 #include "pcl/io/pcd_io.h"
 
-
+#include "utils.h"
 #include "pcl_segmentation.h"
 
-
 int main(int argc, char ** argv) {
+	Utils utils;
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_SLC(
+				new pcl::PointCloud<pcl::PointXYZRGB>);
+
+	/*
+	 *
+	 *      |
+	 *6 cm  | (Y)
+	 *      |_______  8 cm (X)
+	 *     /
+	 *    /  12 cm (Z)
+	 *   /
+	 *
+	 */
+
+
+
+	double side_8 =  0.08,side_6 =  0.06, side_12 =  0.12;
+	double sampling_interval = 0.002;
+	//ground plane
+	for(double z = -side_12/2.; z < side_12/2.; z+= sampling_interval)
+		for(double x = -side_8/2.; x < side_8/2.; x+= sampling_interval){
+			pcl::PointXYZRGB p;
+			p.x = x;
+			p.y = -side_6/2.;
+			p.z = z;
+			p.r = 0;
+			p.g = 0;
+			p.b = 255;
+			cloud_SLC->push_back(p);
+		}
+
+	//back face
+	for(double y = -side_6/2.; y < side_6/2.; y+= sampling_interval)
+		for(double x = -side_8/2.; x < side_8/2.; x+= sampling_interval){
+			pcl::PointXYZRGB p;
+			p.x = x;
+			p.y = y;
+			p.z = -side_12/2.;
+			p.r = 0;
+			p.g = 0;
+			p.b = 255;
+			cloud_SLC->push_back(p);
+		}
+	//left side face
+	for(double z = -side_12/2.; z < side_12/2.; z+= sampling_interval)
+			for(double y = -side_6/2.; y < side_6/2.; y+= sampling_interval){
+				pcl::PointXYZRGB p;
+				p.x = -side_8/2.;
+				p.y = y;
+				p.z = z;
+				p.r = 0;
+				p.g = 0;
+				p.b = 255;
+				cloud_SLC->push_back(p);
+				p.x = side_8/2.;
+				cloud_SLC->push_back(p);
+			}
+
+	std::string box("box");
+	utils.display_cloud(cloud_SLC,box);
+	pcl::io::savePCDFileASCII("/home/martin/bagfiles/slc_test.pcd", *cloud_SLC);
+
+	return 0;
+}
+
+
+int main___(int argc, char ** argv) {
 
 	PCLSegmentation pcl_segmentation;
 	cv::Mat src = cv::imread("/home/martin/workspace/EGBISegmentation/build/input.png",CV_LOAD_IMAGE_COLOR);

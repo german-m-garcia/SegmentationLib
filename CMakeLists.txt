@@ -17,7 +17,7 @@ message("OpenCV_LIBS (2.4?) = ${OpenCV_LIBS}")
 find_package(Qt4 COMPONENTS Widgets Declarative)
 
 #PCL
-set(PCL_DIR "~/workspace/pcl/build/")
+#set(PCL_DIR "~/workspace/pcl/build/")
 find_package(PCL REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS} ${CUDA_INCLUDE_DIRS})
 add_definitions(${PCL_DEFINITIONS})
@@ -101,6 +101,7 @@ endif()
 
 add_library(SEGMENTATION SHARED
    ${PROJECT_SOURCE_DIR}/segmentation.cpp
+   ${PROJECT_SOURCE_DIR}/ms_segmentation.cpp
    
    ${PROJECT_SOURCE_DIR}/objects/svm_wrapper.cpp
    ${PROJECT_SOURCE_DIR}/objects/ObjectDetector.cpp
@@ -129,7 +130,7 @@ target_link_libraries( segment SEGMENTATION  ${Boost_LIBRARIES} ${PCL_LIBRARIES}
 
 #Create an Executable for test main file
 add_executable(test ${PROJECT_SOURCE_DIR}/test.cpp)
-target_link_libraries( test  ${Boost_LIBRARIES} ${PCL_LIBRARIES})
+target_link_libraries( test SEGMENTATION  ${Boost_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
 
 #add_executable(ms_segment ${PROJECT_SOURCE_DIR}/ms_segmenter.cpp)

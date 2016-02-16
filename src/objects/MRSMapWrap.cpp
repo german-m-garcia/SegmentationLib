@@ -431,8 +431,8 @@ double MRSMapWrap::generalized_icp(
 //	gicp.setSourceCovariances(covs_1);
 //	gicp.setTargetCovariances(covs_2);
 	// run registration and get transformation
-	pcl::PointCloud<pcl::PointXYZRGB> output;
-	gicp.align(output);
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr output(new pcl::PointCloud<pcl::PointXYZRGB>);
+	gicp.align(*output);
 	double score = gicp.getFitnessScore();
 
 	string text("cloud1");
