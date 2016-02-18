@@ -264,86 +264,87 @@ void PCLSegmentation::lccpSegment(Mat& src,
 ///  Default values of parameters before parsing
 // Supervoxel Stuff
 
-	float voxel_resolution = 0.01f;
-	float seed_resolution = 0.04f;
-	float concavity_tolerance_threshold = 9;
-	float color_importance = 0.0f;
-	float spatial_importance = 1.0f;
-	float normal_importance = 4.f;
-	cout << "colour, spatial , and normal importances=" << color_importance
-			<< " " << spatial_importance << " " << normal_importance << endl;
-	bool use_single_cam_transform = true;
-	bool use_supervoxel_refinement = false;
-
-// LCCPSegmentation Stuff
-
-	float smoothness_threshold = 0.4;
-	uint32_t min_segment_size = 0;
-	bool use_extended_convexity = true;
-	bool use_sanity_criterion = true;
-
-	unsigned int k_factor = 0;
-	if (use_extended_convexity)
-		k_factor = 1;
-
-/// Preparation of Input: Supervoxel Oversegmentation
-
-	pcl::SupervoxelClustering<PointT> super(voxel_resolution, seed_resolution);
-	super.setUseSingleCameraTransform(use_single_cam_transform);
-	super.setInputCloud(input_cloud_ptr);
-//if (has_normals)
-//	super.setNormalCloud(input_normals_ptr);
-	super.setColorImportance(color_importance);
-	super.setSpatialImportance(spatial_importance);
-	super.setNormalImportance(normal_importance);
-	std::map<uint32_t, pcl::Supervoxel<PointT>::Ptr> supervoxel_clusters;
-
-	PCL_INFO("Extracting supervoxels\n");
-	super.extract(supervoxel_clusters);
-
-	if (use_supervoxel_refinement) {
-		PCL_INFO("Refining supervoxels\n");
-		super.refineSupervoxels(2, supervoxel_clusters);
-	}
-	std::stringstream temp;
-	temp << "  Nr. Supervoxels: " << supervoxel_clusters.size() << "\n";
-	PCL_INFO(temp.str().c_str());
-
-	PCL_INFO("Getting supervoxel adjacency\n");
-	std::multimap<uint32_t, uint32_t> supervoxel_adjacency;
-	super.getSupervoxelAdjacency(supervoxel_adjacency);
-
-/// Get the cloud of supervoxel centroid with normals and the colored cloud with supervoxel coloring (this is used for visulization)
-	pcl::PointCloud<pcl::PointNormal>::Ptr sv_centroid_normal_cloud =
-			pcl::SupervoxelClustering<PointT>::makeSupervoxelNormalCloud(
-					supervoxel_clusters);
-
-/// The Main Step: Perform LCCPSegmentation
-
-	PCL_INFO("Starting Segmentation\n");
-	pcl::LCCPSegmentation<PointT> lccp;
-	lccp.setConcavityToleranceThreshold(concavity_tolerance_threshold);
-	lccp.setSanityCheck(use_sanity_criterion);
-	lccp.setSmoothnessCheck(true, voxel_resolution, seed_resolution,
-			smoothness_threshold);
-	lccp.setKFactor(k_factor);
-	lccp.segment(supervoxel_clusters, supervoxel_adjacency);
-
-	if (min_segment_size > 0) {
-		PCL_INFO("Merging small segments\n");
-		lccp.mergeSmallSegments(min_segment_size);
-	}
-
-	PCL_INFO("Interpolation voxel cloud -> input cloud and relabeling\n");
-	pcl::PointCloud<pcl::PointXYZL>::Ptr sv_labeled_cloud =
-			super.getLabeledCloud();
-	pcl::PointCloud<pcl::PointXYZL>::Ptr lccp_labeled_cloud =
-			sv_labeled_cloud->makeShared();
-	lccp.relabelCloud(*lccp_labeled_cloud);
-	SuperVoxelAdjacencyList sv_adjacency_list;
-	lccp.getSVAdjacencyList(sv_adjacency_list);  // Needed for visualization
-
-	show_patches(outMat, lccp_labeled_cloud);
+//	float voxel_resolution = 0.01f;
+//	float seed_resolution = 0.04f;
+//	float concavity_tolerance_threshold = 9;
+//	float color_importance = 0.0f;
+//	float spatial_importance = 1.0f;
+//	float normal_importance = 4.f;
+//	cout << "colour, spatial , and normal importances=" << color_importance
+//			<< " " << spatial_importance << " " << normal_importance << endl;
+//	bool use_single_cam_transform = true;
+//	bool use_supervoxel_refinement = false;
+//
+//// LCCPSegmentation Stuff
+//
+//	float smoothness_threshold = 0.4;
+//	uint32_t min_segment_size = 0;
+//	bool use_extended_convexity = true;
+//	bool use_sanity_criterion = true;
+//
+//	unsigned int k_factor = 0;
+//	if (use_extended_convexity)
+//		k_factor = 1;
+//
+///// Preparation of Input: Supervoxel Oversegmentation
+//
+//	pcl::SupervoxelClustering<PointT> super(voxel_resolution, seed_resolution);
+//	//PCL 1.8
+//	//super.setUseSingleCameraTransform(use_single_cam_transform);
+//	super.setInputCloud(input_cloud_ptr);
+////if (has_normals)
+////	super.setNormalCloud(input_normals_ptr);
+//	super.setColorImportance(color_importance);
+//	super.setSpatialImportance(spatial_importance);
+//	super.setNormalImportance(normal_importance);
+//	std::map<uint32_t, pcl::Supervoxel<PointT>::Ptr> supervoxel_clusters;
+//
+//	PCL_INFO("Extracting supervoxels\n");
+//	super.extract(supervoxel_clusters);
+//
+//	if (use_supervoxel_refinement) {
+//		PCL_INFO("Refining supervoxels\n");
+//		super.refineSupervoxels(2, supervoxel_clusters);
+//	}
+//	std::stringstream temp;
+//	temp << "  Nr. Supervoxels: " << supervoxel_clusters.size() << "\n";
+//	PCL_INFO(temp.str().c_str());
+//
+//	PCL_INFO("Getting supervoxel adjacency\n");
+//	std::multimap<uint32_t, uint32_t> supervoxel_adjacency;
+//	super.getSupervoxelAdjacency(supervoxel_adjacency);
+//
+///// Get the cloud of supervoxel centroid with normals and the colored cloud with supervoxel coloring (this is used for visulization)
+//	pcl::PointCloud<pcl::PointNormal>::Ptr sv_centroid_normal_cloud =
+//			pcl::SupervoxelClustering<PointT>::makeSupervoxelNormalCloud(
+//					supervoxel_clusters);
+//
+///// The Main Step: Perform LCCPSegmentation
+//
+//	PCL_INFO("Starting Segmentation\n");
+//	pcl::LCCPSegmentation<PointT> lccp;
+//	lccp.setConcavityToleranceThreshold(concavity_tolerance_threshold);
+//	lccp.setSanityCheck(use_sanity_criterion);
+//	lccp.setSmoothnessCheck(true, voxel_resolution, seed_resolution,
+//			smoothness_threshold);
+//	lccp.setKFactor(k_factor);
+//	lccp.segment(supervoxel_clusters, supervoxel_adjacency);
+//
+//	if (min_segment_size > 0) {
+//		PCL_INFO("Merging small segments\n");
+//		lccp.mergeSmallSegments(min_segment_size);
+//	}
+//
+//	PCL_INFO("Interpolation voxel cloud -> input cloud and relabeling\n");
+//	pcl::PointCloud<pcl::PointXYZL>::Ptr sv_labeled_cloud =
+//			super.getLabeledCloud();
+//	pcl::PointCloud<pcl::PointXYZL>::Ptr lccp_labeled_cloud =
+//			sv_labeled_cloud->makeShared();
+//	lccp.relabelCloud(*lccp_labeled_cloud);
+//	SuperVoxelAdjacencyList sv_adjacency_list;
+//	lccp.getSVAdjacencyList(sv_adjacency_list);  // Needed for visualization
+//
+//	show_patches(outMat, lccp_labeled_cloud);
 
 	//read_segments(src, outMat);
 

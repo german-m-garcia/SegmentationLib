@@ -30,8 +30,7 @@ MSSegmentation::MSSegmentation(cv::Mat& src, bool gpu, int scales,
 	pyramid(gpu, src, absolute_scales_, starting_scale_);
 	segments_pyramid_.resize(actual_scales_);
 	output_segments_pyramid_.resize(actual_scales_);
-	gradients_pyramid_.reserve(actual_scales_);
-	thresholded_gradients_pyramid_.reserve(actual_scales_);
+
 	//show_pyramids();
 
 }
@@ -52,8 +51,7 @@ void MSSegmentation::init(cv::Mat& src, bool gpu, int scales,
 	pyramid(gpu, src, absolute_scales_, starting_scale_);
 	segments_pyramid_.resize(actual_scales_);
 	output_segments_pyramid_.resize(actual_scales_);
-	gradients_pyramid_.reserve(actual_scales_);
-	thresholded_gradients_pyramid_.reserve(actual_scales_);
+
 	//show_pyramids();
 
 }
@@ -62,6 +60,8 @@ MSSegmentation::~MSSegmentation() {
 
 	// TODO Auto-generated destructor stub
 	for (int i = 0; i < actual_scales_; i++) {
+		cout <<"> ~MSSegmentation() i="<<i<<" actual_scales_="<<actual_scales_<<endl;
+		cout <<"> ~MSSegmentation() image_pyramid_.size()="<<image_pyramid_.size()<<endl;
 		image_pyramid_[i].release();
 		bilateral_filtered_pyramid_[i].release();
 		//output_segments_pyramid_[i].release();
@@ -141,11 +141,13 @@ void MSSegmentation::pyramid(bool gpu, cv::Mat& src, int scales,
 		bilateral_filtered_pyramid_.push_back(img_scale_i);
 
 		cv::pyrDown(src, src, cv::Size(src.cols / 2, src.rows / 2));
+		cout <<"> MSSegmentation::pyramid image_pyramid_.size()="<<image_pyramid_.size()<<endl;
 
 	}
 }
 
-void MSSegmentation::segment_pyramid(double thres) {
+void MSSegmentation::segment_pyramid(double sp, double sr,
+		double min_size) {
 
 
 	if (do_bilateral)
@@ -155,7 +157,7 @@ void MSSegmentation::segment_pyramid(double thres) {
 
 			//scharr_segment(bilateral_filtered_pyramid_[i], contours_mat,
 			//		gradient, gray_gradient, thres, i, true);
-			mean_shift(bilateral_filtered_pyramid_[i],contours_mat);
+			mean_shift(bilateral_filtered_pyramid_[i],contours_mat,sp,sr,min_size);
 			output_segments_pyramid_[i] = contours_mat;
 
 
@@ -165,7 +167,7 @@ void MSSegmentation::segment_pyramid(double thres) {
 			Mat contours_mat, gradient, gray_gradient;
 //			scharr_segment(image_pyramid_[i], contours_mat, gradient,
 //					gray_gradient, thres, i, true);
-			mean_shift(image_pyramid_[i],contours_mat);
+			mean_shift(image_pyramid_[i],contours_mat,sp,sr,min_size);
 			output_segments_pyramid_[i] = contours_mat;
 
 
@@ -210,7 +212,9 @@ void MSSegmentation::mean_shift(cv::Mat& src, cv::Mat& dst, double sp, double sr
 
 	cv::imwrite("/home/martin/workspace/EGBISegmentation/build/input.png",src);
 	cout <<" saved input image for segmentation"<<endl;
-	int rc =system (" ~/workspace/EGBISegmentation/build/ms_segment ~/workspace/EGBISegmentation/build/input.png 15 15 30 ~/workspace/EGBISegmentation/build/out.png");
+	std::string call("~/workspace/EGBISegmentation/build/ms_segment ~/workspace/EGBISegmentation/build/input.png ");
+	call = call + utils_.stringify(sp)+" "+ utils_.stringify(sr)+" "+ utils_.stringify(min_size)+"  ~/workspace/EGBISegmentation/build/out.png";
+	int rc =std::system (call.c_str());
 	cout <<" system call returned "<<rc<<endl;
 	//open the segmentation result
 	dst = imread("/home/martin/workspace/EGBISegmentation/build/out.png",CV_LOAD_IMAGE_COLOR);

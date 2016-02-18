@@ -16,7 +16,7 @@
 #include <pcl/filters/conditional_removal.h>
 #include <pcl/filters/filter.h>
 #include <pcl/filters/median_filter.h>
-#include <pcl/filters/model_outlier_removal.h>
+//#include <pcl/filters/model_outlier_removal.h>
 
 #include <pcl/search/search.h>
 #include <pcl/search/kdtree.h>
@@ -26,10 +26,15 @@
 #include <pcl/segmentation/region_growing.h>
 #include <pcl/features/normal_3d_omp.h>
 #include <pcl/features/integral_image_normal.h>
-#include <pcl/features/moment_of_inertia_estimation.h>
 
 #include <pcl/filters/random_sample.h>
-#include <pcl/filters/uniform_sampling.h>
+#include "pcl_hack/uniform_sampling.h"
+//#include <pcl/keypoints/uniform_sampling.h>
+//PCL 1.8
+//#include <pcl/filters/uniform_sampling.h>
+//#include <pcl/filters/random_sample.h>
+//#include <pcl/filters/moment_of_inertia_estimation.h>
+
 #include <pcl/surface/organized_fast_mesh.h>
 
 
@@ -307,11 +312,11 @@ void Utils::display_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 void Utils::display_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 		string& text) {
 	pcl::visualization::PCLVisualizer viewer(text);
-	viewer.setBackgroundColor(0, 0, 0);
+	//viewer.setBackgroundColor(0, 0, 0);
 	viewer.addPointCloud < pcl::PointXYZRGB > (cloud, text);
 	viewer.addCoordinateSystem(1.0);
 	viewer.setPointCloudRenderingProperties(
-			pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10, text);
+			pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, text);
 	viewer.spin();
 }
 
@@ -329,7 +334,7 @@ void Utils::display_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 		cloud_copy->points.push_back(cloud->points[index]);
 
 	pcl::visualization::PCLVisualizer viewer(text);
-	viewer.setBackgroundColor(0, 0, 0);
+	//viewer.setBackgroundColor(0, 0, 0);
 	viewer.addPointCloud < pcl::PointXYZRGB > (cloud_copy, text);
 	viewer.addCoordinateSystem(1.0);
 	viewer.setPointCloudRenderingProperties(
@@ -542,47 +547,47 @@ void Utils::compute_integral_normals(
 void Utils::compute_vfh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 		pcl::PointCloud<pcl::Normal>::Ptr& normals, Mat& vfh_features) {
 
-	if (cloud->points.size() == 0) {
-		vfh_features = Mat::zeros(1, 397, CV_32FC1);
-		return;
-	}
+//	if (cloud->points.size() == 0) {
+//		vfh_features = Mat::zeros(1, 397, CV_32FC1);
+//		return;
+//	}
+//
+//	pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree(
+//			new pcl::search::KdTree<pcl::PointXYZRGB>);
+//
+//	// Setup the feature computation
+//	typedef pcl::VFHEstimation<pcl::PointXYZRGB, pcl::Normal,
+//			pcl::VFHSignature308> VFHEstimationType;
+//	VFHEstimationType vfhEstimation;
+//
+//	// Provide the original point cloud (without normals)
+//	vfhEstimation.setInputCloud(cloud);
+//
+//	// Provide the point cloud with normals
+//	vfhEstimation.setInputNormals(normals);
+//
+//	// Use the same KdTree from the normal estimation
+//	vfhEstimation.setSearchMethod(tree);
+//
+//	//vfhEstimation.setRadiusSearch (0.2); // With this, error: "Both radius (.2) and K (1) defined! Set one of them to zero first and then re-run compute()"
+//
+//	// Actually compute the VFH features
+//	pcl::PointCloud<pcl::VFHSignature308>::Ptr vfhFeatures(
+//			new pcl::PointCloud<pcl::VFHSignature308>);
+//	vfhEstimation.compute(*vfhFeatures);
+//
+//	//std::cout << "output points.size (): " << vfhFeatures->points.size()
+//	//		<< std::endl; // This outputs 1 - should be 397!
+//
+//	// Display and retrieve the shape context descriptor vector for the 0th point.
+//	pcl::VFHSignature308 descriptor = vfhFeatures->points[0];
+////	VFHEstimationType::PointCloudOut::PointType descriptor2 =
+////			vfhFeatures->points[0];
+//	vfh_features.create(1, descriptor.descriptorSize(), CV_32FC1);
+//	for (int i = 0; i < descriptor.descriptorSize(); i++) {
+//		vfh_features.at<float>(0, i) = descriptor.histogram[i];
+//	}
 
-	pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree(
-			new pcl::search::KdTree<pcl::PointXYZRGB>);
-
-	// Setup the feature computation
-	typedef pcl::VFHEstimation<pcl::PointXYZRGB, pcl::Normal,
-			pcl::VFHSignature308> VFHEstimationType;
-	VFHEstimationType vfhEstimation;
-
-	// Provide the original point cloud (without normals)
-	vfhEstimation.setInputCloud(cloud);
-
-	// Provide the point cloud with normals
-	vfhEstimation.setInputNormals(normals);
-
-	// Use the same KdTree from the normal estimation
-	vfhEstimation.setSearchMethod(tree);
-
-	//vfhEstimation.setRadiusSearch (0.2); // With this, error: "Both radius (.2) and K (1) defined! Set one of them to zero first and then re-run compute()"
-
-	// Actually compute the VFH features
-	pcl::PointCloud<pcl::VFHSignature308>::Ptr vfhFeatures(
-			new pcl::PointCloud<pcl::VFHSignature308>);
-	vfhEstimation.compute(*vfhFeatures);
-
-	//std::cout << "output points.size (): " << vfhFeatures->points.size()
-	//		<< std::endl; // This outputs 1 - should be 397!
-
-	// Display and retrieve the shape context descriptor vector for the 0th point.
-	pcl::VFHSignature308 descriptor = vfhFeatures->points[0];
-//	VFHEstimationType::PointCloudOut::PointType descriptor2 =
-//			vfhFeatures->points[0];
-	vfh_features.create(1, descriptor.descriptorSize(), CV_32FC1);
-	for (int i = 0; i < descriptor.descriptorSize(); i++) {
-		vfh_features.at<float>(0, i) = descriptor.histogram[i];
-	}
-	//std::cout <<"compute_vfh="<< descriptor << std::endl;
 
 }
 
@@ -684,66 +689,51 @@ void Utils::compute_fpfh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 void Utils::compute_inertia(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 		Point3d& dimensions_3d) {
 
-	pcl::MomentOfInertiaEstimation<pcl::PointXYZRGB> feature_extractor;
-	feature_extractor.setInputCloud(cloud);
-	feature_extractor.compute();
-
-	std::vector<float> moment_of_inertia;
-	std::vector<float> eccentricity;
-	pcl::PointXYZRGB min_point_AABB;
-	pcl::PointXYZRGB max_point_AABB;
-	pcl::PointXYZRGB min_point_OBB;
-	pcl::PointXYZRGB max_point_OBB;
-	pcl::PointXYZRGB position_OBB;
-	Eigen::Matrix3f rotational_matrix_OBB;
-	float major_value, middle_value, minor_value;
-	Eigen::Vector3f major_vector, middle_vector, minor_vector;
-	Eigen::Vector3f mass_center;
-
-	feature_extractor.getMomentOfInertia(moment_of_inertia);
-	feature_extractor.getEccentricity(eccentricity);
-	feature_extractor.getAABB(min_point_AABB, max_point_AABB);
-	feature_extractor.getOBB(min_point_OBB, max_point_OBB, position_OBB,
-			rotational_matrix_OBB);
-	feature_extractor.getEigenValues(major_value, middle_value, minor_value);
-	feature_extractor.getEigenVectors(major_vector, middle_vector,
-			minor_vector);
-	feature_extractor.getMassCenter(mass_center);
-
-//	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(
-//			new pcl::visualization::PCLVisualizer("3D Viewer"));
-//	viewer->setBackgroundColor(0, 0, 0);
-//	viewer->addCoordinateSystem(1.0);
-//	viewer->initCameraParameters();
-//	viewer->addPointCloud < pcl::PointXYZRGB > (cloud, "sample cloud");
-//	viewer->addCube(min_point_AABB.x, max_point_AABB.x, min_point_AABB.y,
-//			max_point_AABB.y, min_point_AABB.z, max_point_AABB.z, 1.0, 1.0, 0.0,
-//			"AABB");
-
-	Eigen::Vector3f position(position_OBB.x, position_OBB.y, position_OBB.z);
-	Eigen::Quaternionf quat(rotational_matrix_OBB);
-	dimensions_3d.x = max_point_OBB.x - min_point_OBB.x;
-	dimensions_3d.y = max_point_OBB.y - min_point_OBB.y;
-	dimensions_3d.z = max_point_OBB.z - min_point_OBB.z;
-	cout << "compute_inertia: |x|=" << max_point_OBB.x - min_point_OBB.x
-			<< " |y|=" << max_point_OBB.y - min_point_OBB.y << " |z|="
-			<< max_point_OBB.z - min_point_OBB.z << endl;
-//	viewer->addCube(position, quat, max_point_OBB.x - min_point_OBB.x,
-//			max_point_OBB.y - min_point_OBB.y,
-//			max_point_OBB.z - min_point_OBB.z, "OBB");
+//	pcl::MomentOfInertiaEstimation<pcl::PointXYZRGB> feature_extractor;
+//	feature_extractor.setInputCloud(cloud);
+//	feature_extractor.compute();
 //
-//	pcl::PointXYZRGB center(mass_center(0), mass_center(1), mass_center(2));
-//	pcl::PointXYZRGB x_axis(major_vector(0) + mass_center(0),
-//			major_vector(1) + mass_center(1), major_vector(2) + mass_center(2));
-//	pcl::PointXYZRGB y_axis(middle_vector(0) + mass_center(0),
-//			middle_vector(1) + mass_center(1),
-//			middle_vector(2) + mass_center(2));
-//	pcl::PointXYZRGB z_axis(minor_vector(0) + mass_center(0),
-//			minor_vector(1) + mass_center(1), minor_vector(2) + mass_center(2));
-//	viewer->addLine(center, x_axis, 1.0f, 0.0f, 0.0f, "major eigen vector");
-//	viewer->addLine(center, y_axis, 0.0f, 1.0f, 0.0f, "middle eigen vector");
-//	viewer->addLine(center, z_axis, 0.0f, 0.0f, 1.0f, "minor eigen vector");
-//	viewer->spin();
+//	std::vector<float> moment_of_inertia;
+//	std::vector<float> eccentricity;
+//	pcl::PointXYZRGB min_point_AABB;
+//	pcl::PointXYZRGB max_point_AABB;
+//	pcl::PointXYZRGB min_point_OBB;
+//	pcl::PointXYZRGB max_point_OBB;
+//	pcl::PointXYZRGB position_OBB;
+//	Eigen::Matrix3f rotational_matrix_OBB;
+//	float major_value, middle_value, minor_value;
+//	Eigen::Vector3f major_vector, middle_vector, minor_vector;
+//	Eigen::Vector3f mass_center;
+//
+//	feature_extractor.getMomentOfInertia(moment_of_inertia);
+//	feature_extractor.getEccentricity(eccentricity);
+//	feature_extractor.getAABB(min_point_AABB, max_point_AABB);
+//	feature_extractor.getOBB(min_point_OBB, max_point_OBB, position_OBB,
+//			rotational_matrix_OBB);
+//	feature_extractor.getEigenValues(major_value, middle_value, minor_value);
+//	feature_extractor.getEigenVectors(major_vector, middle_vector,
+//			minor_vector);
+//	feature_extractor.getMassCenter(mass_center);
+//
+////	boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(
+////			new pcl::visualization::PCLVisualizer("3D Viewer"));
+////	viewer->setBackgroundColor(0, 0, 0);
+////	viewer->addCoordinateSystem(1.0);
+////	viewer->initCameraParameters();
+////	viewer->addPointCloud < pcl::PointXYZRGB > (cloud, "sample cloud");
+////	viewer->addCube(min_point_AABB.x, max_point_AABB.x, min_point_AABB.y,
+////			max_point_AABB.y, min_point_AABB.z, max_point_AABB.z, 1.0, 1.0, 0.0,
+////			"AABB");
+//
+//	Eigen::Vector3f position(position_OBB.x, position_OBB.y, position_OBB.z);
+//	Eigen::Quaternionf quat(rotational_matrix_OBB);
+//	dimensions_3d.x = max_point_OBB.x - min_point_OBB.x;
+//	dimensions_3d.y = max_point_OBB.y - min_point_OBB.y;
+//	dimensions_3d.z = max_point_OBB.z - min_point_OBB.z;
+//	cout << "compute_inertia: |x|=" << max_point_OBB.x - min_point_OBB.x
+//			<< " |y|=" << max_point_OBB.y - min_point_OBB.y << " |z|="
+//			<< max_point_OBB.z - min_point_OBB.z << endl;
+
 }
 
 void Utils::find_detection_yaw(Mat& mask, Mat& img, Mat& depth,
@@ -835,14 +825,18 @@ void Utils::obtain_eigen_axes(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
  *
  */
 void Utils::compute_bounding_box(
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
+		const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
 		Point3d& dimensions_3d) {
 
+	//copy the point cloud
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr copy_cloud(
+			new pcl::PointCloud<pcl::PointXYZRGB>);
+	pcl::copyPointCloud(*src_cloud, *copy_cloud);
 	Eigen::Matrix3f eigenVectorsPCA;
-	compute_pca_alt(src_cloud, eigenVectorsPCA);
+	compute_pca_alt(copy_cloud, eigenVectorsPCA);
 
 	Eigen::Vector4f pcaCentroid;
-	pcl::compute3DCentroid(*src_cloud, pcaCentroid);
+	pcl::compute3DCentroid(*copy_cloud, pcaCentroid);
 
 	// Transform the original cloud to the origin where the principal components correspond to the axes.
 	Eigen::Matrix4f projectionTransform(Eigen::Matrix4f::Identity());
@@ -851,7 +845,7 @@ void Utils::compute_bounding_box(
 			* (projectionTransform.block<3, 3>(0, 0) * pcaCentroid.head<3>());
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloudPointsProjected(
 			new pcl::PointCloud<pcl::PointXYZRGB>);
-	pcl::transformPointCloud(*src_cloud, *cloudPointsProjected,
+	pcl::transformPointCloud(*copy_cloud, *cloudPointsProjected,
 			projectionTransform);
 	// Get the minimum and maximum points of the transformed cloud.
 	pcl::PointXYZRGB minPoint, maxPoint;
@@ -1313,12 +1307,21 @@ void Utils::compute_contours(cv::Mat& mask,vector<vector<Point> >& contours){
 	//		CV_CHAIN_APPROX_NONE, Point(0, 0));
 }
 
+void Utils::addPoints(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud){
+	for(PointXYZRGB& p: *src_cloud){
+		dst_cloud->push_back(p);
+	}
+}
+
 void Utils::sub_sample(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud){
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-	pcl::UniformSampling<PointXYZRGB> uni_sampling;
+	pcl::UniformSampling<pcl::PointXYZRGB> uni_sampling;
 	uni_sampling.setInputCloud(src_cloud);
-	uni_sampling.setRadiusSearch(0.02f);
+	//uni_sampling.setRadiusSearch(0.02f);
+	uni_sampling.setRadiusSearch(0.01f);
+	//PCL 1.8
 	uni_sampling.filter(*tmp_cloud);
+	//uni_sampling.detectKeypoints(*tmp_cloud);
 	dst_cloud = tmp_cloud;
 
 

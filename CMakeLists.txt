@@ -118,8 +118,11 @@ add_library(SEGMENTATION SHARED
    ${PROJECT_SOURCE_DIR}/epbase.cpp
    ${PROJECT_SOURCE_DIR}/cluster_normals_to_planes.cpp    
    ${PROJECT_SOURCE_DIR}/utils.cpp  
+   #hack to work with PCL 1.7
+   ${PROJECT_SOURCE_DIR}/pcl_hack/uniform_sampling.cpp
+   
    #remove if using the latest PCL 
-   ${PROJECT_SOURCE_DIR}/lccp_segmentation.cpp
+   #${PROJECT_SOURCE_DIR}/lccp_segmentation.cpp
  )
 
 
@@ -133,7 +136,7 @@ add_executable(test ${PROJECT_SOURCE_DIR}/test.cpp)
 target_link_libraries( test SEGMENTATION  ${Boost_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
 
-#add_executable(ms_segment ${PROJECT_SOURCE_DIR}/ms_segmenter.cpp)
-#target_link_libraries( ms_segment  SEGMENTATION ${Boost_LIBRARIES}  ${OpenCV_LIBS}  ${PCL_LIBRARIES} )
+add_executable(ms_segment ${PROJECT_SOURCE_DIR}/ms_segmenter.cpp)
+target_link_libraries( ms_segment  SEGMENTATION ${Boost_LIBRARIES}  ${OpenCV_LIBS}  ${PCL_LIBRARIES} )
 
 

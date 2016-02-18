@@ -25,6 +25,7 @@
 #endif
 
 #include "base_segmentation.h"
+#include "utils.h"
 
 
 #define DEBUG false
@@ -55,7 +56,8 @@ public:
 
 	void show_pyramids();
 
-	void segment_pyramid(double thres);
+	void segment_pyramid(double sp, double sr,
+			double min_size);
 
 
 	void save_colours(int scale,vector<Vec3b>& colours);
@@ -87,7 +89,6 @@ private:
 	cv::Mat original_img_;
 	vector<cv::Mat> image_pyramid_, bilateral_filtered_pyramid_, output_segments_pyramid_;
 	vector<cv::Mat> scharr_pyramid_, bilateral_scharr_pyramid_;
-	vector<cv::Mat> gradients_pyramid_,thresholded_gradients_pyramid_;
 
 	vector< vector <Segment*> > segments_pyramid_;
 
@@ -98,6 +99,7 @@ private:
 	const bool do_bilateral = true;
 
 	Size original_size_;
+	Utils utils_;
 
 
 };

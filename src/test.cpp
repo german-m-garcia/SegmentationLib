@@ -36,6 +36,7 @@
 
 #include "utils.h"
 #include "pcl_segmentation.h"
+#include "objects/ObjectDetector.h"
 
 int main(int argc, char ** argv) {
 	Utils utils;
@@ -44,25 +45,25 @@ int main(int argc, char ** argv) {
 
 	/*
 	 *
-	 *      |
-	 *6 cm  | (Y)
-	 *      |_______  8 cm (X)
+	 *        |
+	 *7.5 cm  | (X)
+	 *        |_______  9.5 cm (Y)
+	 *       /
+	 *      /  16 cm (Z)
 	 *     /
-	 *    /  12 cm (Z)
-	 *   /
 	 *
 	 */
 
 
 
-	double side_8 =  0.08,side_6 =  0.06, side_12 =  0.12;
+	double side_8 =  0.095,side_6 =  0.075, side_12 =  0.16;
 	double sampling_interval = 0.002;
 	//ground plane
 	for(double z = -side_12/2.; z < side_12/2.; z+= sampling_interval)
-		for(double x = -side_8/2.; x < side_8/2.; x+= sampling_interval){
+		for(double y = -side_8/2.; y < side_8/2.; y+= sampling_interval){
 			pcl::PointXYZRGB p;
-			p.x = x;
-			p.y = -side_6/2.;
+			p.y = y;
+			p.x = -side_6/2.;
 			p.z = z;
 			p.r = 0;
 			p.g = 0;
@@ -71,8 +72,8 @@ int main(int argc, char ** argv) {
 		}
 
 	//back face
-	for(double y = -side_6/2.; y < side_6/2.; y+= sampling_interval)
-		for(double x = -side_8/2.; x < side_8/2.; x+= sampling_interval){
+	for(double x = -side_6/2.; x < side_6/2.; x+= sampling_interval)
+		for(double y = -side_8/2.; y < side_8/2.; y+= sampling_interval){
 			pcl::PointXYZRGB p;
 			p.x = x;
 			p.y = y;
@@ -84,20 +85,22 @@ int main(int argc, char ** argv) {
 		}
 	//left side face
 	for(double z = -side_12/2.; z < side_12/2.; z+= sampling_interval)
-			for(double y = -side_6/2.; y < side_6/2.; y+= sampling_interval){
+			for(double x = -side_6/2.; x < side_6/2.; x+= sampling_interval){
 				pcl::PointXYZRGB p;
-				p.x = -side_8/2.;
-				p.y = y;
+				p.y = -side_8/2.;
+				p.x = x;
 				p.z = z;
 				p.r = 0;
 				p.g = 0;
 				p.b = 255;
 				cloud_SLC->push_back(p);
-				p.x = side_8/2.;
+				p.y = side_8/2.;
 				cloud_SLC->push_back(p);
 			}
 
 	std::string box("box");
+	Point3d point;
+	//ObjectDetector::normalize_pcl(cloud_SLC,cloud_SLC,point);
 	utils.display_cloud(cloud_SLC,box);
 	pcl::io::savePCDFileASCII("/home/martin/bagfiles/slc_test.pcd", *cloud_SLC);
 

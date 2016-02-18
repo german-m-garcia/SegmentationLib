@@ -85,7 +85,8 @@ int main(int argc, char** argv) {
 
 	utils.tick();
 	MSSegmentation segmentation(original_img,gpu,scales,starting_scale);
-	segmentation.segment_pyramid(threshold);
+	int sp = 15, sr = 15, min_size = 10;
+	segmentation.segment_pyramid(sp,sr,min_size);
 	segmentation.map_segments(0);
 
 

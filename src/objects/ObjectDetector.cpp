@@ -13,9 +13,9 @@
  * Kinfu
  */
 
-#include <pcl/gpu/kinfu/raycaster.h>
-#include <pcl/gpu/kinfu/marching_cubes.h>
-#include <pcl/gpu/containers/initialization.h>
+//#include <pcl/gpu/kinfu/raycaster.h>
+//#include <pcl/gpu/kinfu/marching_cubes.h>
+//#include <pcl/gpu/containers/initialization.h>
 #include <pcl/common/angles.h>
 
 #include <pcl/common/time.h>
@@ -537,6 +537,8 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 
 	//split the mask into individual detections
 	vector<Rect> rects;
+	cv::imshow("test_data mask",mask);
+	cv::waitKey(1);
 	split_detections_masks_rects(mask, rects, masks);
 	vector<Mat> masks_verified;
 
@@ -556,14 +558,22 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 		Eigen::Matrix4f projectionTransform;
 		normalize_pcl(cloud_detection, cropped_cloud_rotated, gravity_center,projectionTransform);
 
+		cv::imshow("current detection",mask);
+
 		string text("candidate detection");
-		utils_.display_cloud(cropped_cloud_rotated,text);
+		//utils_.display_cloud(cropped_cloud_rotated,text);
+
+		Point3d dimensions_3d;
+		utils_.compute_bounding_box(cropped_cloud_rotated,dimensions_3d);
+		std::cout <<"ObjectDetector::test_data detection dimensions: "<<dimensions_3d.x<<" "<<dimensions_3d.y<<" "<<dimensions_3d.z<<std::endl;
 
 		//subsample the point cloud
 		if(cropped_cloud_rotated->size() > MIN_POINTS_TO_SUBSAMPLE)
 			utils_.sub_sample(cropped_cloud_rotated, cropped_cloud_rotated);
-		if(cropped_cloud_rotated->size() < 100)
+		if(cropped_cloud_rotated->size() < 20){
+			cout <<" discarding candidate of "<<cropped_cloud_rotated->size()<<" points"<<endl;
 			continue;
+		}
 
 
 
@@ -586,7 +596,7 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 		text = "detected model cloud";
 
 		cout << "> ObjectDetector::test_data min_score GICP="<<min_score<<endl;
-
+		//cv::waitKey(0);
 
 		if(min_score < threshold_score_gicp_){
 			masks_verified.push_back(mask);
@@ -602,7 +612,10 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 			//utils_.display_cloud(model_cloud,text);
 
 			Detection detection;
-			detection.cloud = model_cloud;
+			detection.cloud = pcl::PointCloud<pcl::PointXYZRGB>::Ptr(
+						new pcl::PointCloud<pcl::PointXYZRGB>);
+				pcl::copyPointCloud(*model_cloud, *detection.cloud);
+
 			detection.confidence = min_score;
 			detection.position = gravity_center;
 			detections_vector.push_back(detection);
@@ -610,7 +623,11 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 
 
 	}
-
+	//sort the detections
+	sort(detections_vector.begin(),detections_vector.end(),Detection::sort_detections);
+	for(Detection& detect : detections_vector){
+		cout <<" detection confidence = "<<detect.confidence<<endl;
+	}
 
 	//draw the contours around the detections
 	draw_contours_detections(original_img, masks_verified, debug);
@@ -781,73 +798,73 @@ void ObjectDetector::align_point_clouds() {
  */
 void ObjectDetector::run_kinfu(float vsz) {
 
-	pcl::gpu::KinfuTracker kinfu_(rows, cols);
-	//Init Kinfu Tracker
-
-	kinfu_.setDepthIntrinsics(fx, fy, cx, cy);
-
-	Eigen::Vector3f volume_size = Eigen::Vector3f::Constant(vsz/*meters*/);
-	kinfu_.volume().setSize(volume_size);
-
-	Eigen::Matrix3f R = Eigen::Matrix3f::Identity(); // * AngleAxisf( pcl::deg2rad(-30.f), Vector3f::UnitX());
-	Eigen::Vector3f t = volume_size * 0.5f
-			- Eigen::Vector3f(0, 0, volume_size(2) / 2 * 1.2f);
-
-	Eigen::Affine3f pose = Eigen::Translation3f(t) * Eigen::AngleAxisf(R);
-
-	kinfu_.setInitalCameraPose(pose);
-	kinfu_.volume().setTsdfTruncDist(0.030f/*meters*/);
-	kinfu_.setIcpCorespFilteringParams(0.1f/*meters*/, sin(pcl::deg2rad(20.f)));
-	//kinfu_.setDepthTruncationForICP(5.f/*meters*/);
-	kinfu_.setCameraMovementThreshold(0.0001f);
-
-//	const int max_color_integration_weight = 2;
-//	kinfu_.initColorIntegration(max_color_integration_weight);
-
-	pcl::gpu::KinfuTracker::DepthMap depth_device_;
-	pcl::gpu::KinfuTracker::View colors_device_;
-	for (unsigned int i = 0; i < frames_.size(); i++) {
-		Mat frame = frames_[i];
-		Mat depth = depths_[i];
-
-		//imshow("kinfuing with this frame",frame);
-		//waitKey(0);
-
-		//upload depth data to GPU
-		pcl::gpu::PtrStepSz<const unsigned short int> depth_;
-		depth_.cols = depth.cols;
-		depth_.rows = depth.rows;
-		depth_.step = depth_.cols * sizeof(const unsigned short int);//depth_.elemSize();
-
-		//cout <<" params: depth_.step="<<depth_.step<<" depth_.cols="<<depth_.cols<<" depth_.rows="<<depth_.rows<<endl;
-		std::vector<unsigned short int> source_depth_data_;
-		source_depth_data_.resize(depth_.cols * depth_.rows);
-
-		memcpy(&source_depth_data_[0], depth.data,
-				sizeof(unsigned short int) * depth.cols * depth.rows);
-		depth_.data = &source_depth_data_[0];
-		depth_device_.upload(depth_.data, depth_.step, depth_.rows,
-				depth_.cols);
-
-		kinfu_(depth_device_);
-
-	}
-
-	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr_(
-			new pcl::PointCloud<pcl::PointXYZ>);
-	pcl::gpu::DeviceArray<pcl::PointXYZ> cloud_buffer_device_;
-
-	pcl::gpu::DeviceArray<pcl::PointXYZ> extracted = kinfu_.volume().fetchCloud(
-			cloud_buffer_device_);
-	extracted.download(cloud_ptr_->points);
-	cloud_ptr_->width = (int) cloud_ptr_->points.size();
-	cloud_ptr_->height = 1;
-
-	cout << "> kinfu fetched cloud_ptr_ has this many points: "
-			<< (int) cloud_ptr_->points.size() << endl;
-
-	display_cloud(cloud_ptr_);
-	pcl::io::savePCDFileASCII("/home/martin/bagfiles/slc.pcd", *cloud_ptr_);
+//	pcl::gpu::KinfuTracker kinfu_(rows, cols);
+//	//Init Kinfu Tracker
+//
+//	kinfu_.setDepthIntrinsics(fx, fy, cx, cy);
+//
+//	Eigen::Vector3f volume_size = Eigen::Vector3f::Constant(vsz/*meters*/);
+//	kinfu_.volume().setSize(volume_size);
+//
+//	Eigen::Matrix3f R = Eigen::Matrix3f::Identity(); // * AngleAxisf( pcl::deg2rad(-30.f), Vector3f::UnitX());
+//	Eigen::Vector3f t = volume_size * 0.5f
+//			- Eigen::Vector3f(0, 0, volume_size(2) / 2 * 1.2f);
+//
+//	Eigen::Affine3f pose = Eigen::Translation3f(t) * Eigen::AngleAxisf(R);
+//
+//	kinfu_.setInitalCameraPose(pose);
+//	kinfu_.volume().setTsdfTruncDist(0.030f/*meters*/);
+//	kinfu_.setIcpCorespFilteringParams(0.1f/*meters*/, sin(pcl::deg2rad(20.f)));
+//	//kinfu_.setDepthTruncationForICP(5.f/*meters*/);
+//	kinfu_.setCameraMovementThreshold(0.0001f);
+//
+////	const int max_color_integration_weight = 2;
+////	kinfu_.initColorIntegration(max_color_integration_weight);
+//
+//	pcl::gpu::KinfuTracker::DepthMap depth_device_;
+//	pcl::gpu::KinfuTracker::View colors_device_;
+//	for (unsigned int i = 0; i < frames_.size(); i++) {
+//		Mat frame = frames_[i];
+//		Mat depth = depths_[i];
+//
+//		//imshow("kinfuing with this frame",frame);
+//		//waitKey(0);
+//
+//		//upload depth data to GPU
+//		pcl::gpu::PtrStepSz<const unsigned short int> depth_;
+//		depth_.cols = depth.cols;
+//		depth_.rows = depth.rows;
+//		depth_.step = depth_.cols * sizeof(const unsigned short int);//depth_.elemSize();
+//
+//		//cout <<" params: depth_.step="<<depth_.step<<" depth_.cols="<<depth_.cols<<" depth_.rows="<<depth_.rows<<endl;
+//		std::vector<unsigned short int> source_depth_data_;
+//		source_depth_data_.resize(depth_.cols * depth_.rows);
+//
+//		memcpy(&source_depth_data_[0], depth.data,
+//				sizeof(unsigned short int) * depth.cols * depth.rows);
+//		depth_.data = &source_depth_data_[0];
+//		depth_device_.upload(depth_.data, depth_.step, depth_.rows,
+//				depth_.cols);
+//
+//		kinfu_(depth_device_);
+//
+//	}
+//
+//	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr_(
+//			new pcl::PointCloud<pcl::PointXYZ>);
+//	pcl::gpu::DeviceArray<pcl::PointXYZ> cloud_buffer_device_;
+//
+//	pcl::gpu::DeviceArray<pcl::PointXYZ> extracted = kinfu_.volume().fetchCloud(
+//			cloud_buffer_device_);
+//	extracted.download(cloud_ptr_->points);
+//	cloud_ptr_->width = (int) cloud_ptr_->points.size();
+//	cloud_ptr_->height = 1;
+//
+//	cout << "> kinfu fetched cloud_ptr_ has this many points: "
+//			<< (int) cloud_ptr_->points.size() << endl;
+//
+//	display_cloud(cloud_ptr_);
+//	pcl::io::savePCDFileASCII("/home/martin/bagfiles/slc.pcd", *cloud_ptr_);
 
 }
 

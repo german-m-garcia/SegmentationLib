@@ -23,6 +23,7 @@
 #include <pcl/features/vfh.h>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
+#include <pcl/PolygonMesh.h>
 #include "segment.h"
 
 
@@ -120,6 +121,8 @@ public:
 
 	void compute_contours(cv::Mat& mask,vector<vector<Point> >& contours);
 
+	void addPoints(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud);
+
 	void sub_sample(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud);
 
 	void find_detection_yaw(cv::Mat& mask, cv::Mat& img,cv::Mat& depth, Point3d& position,Point3d& orientation);
@@ -132,7 +135,7 @@ public:
 
 	void obtain_eigen_axes(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud, Eigen::Matrix4f& projectionTransform);
 
-	void compute_bounding_box(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,Point3d& dimensions_3d);
+	void compute_bounding_box(const pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,Point3d& dimensions_3d);
 
 	void cluster(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud);
 

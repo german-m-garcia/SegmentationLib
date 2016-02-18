@@ -14,15 +14,15 @@
 #include <vector>
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
-#include <pcl/gpu/kinfu/kinfu.h>
-#include <pcl/features/from_meshes.h>
-#include <pcl/surface/organized_fast_mesh.h>
+//#include <pcl/gpu/kinfu/kinfu.h>
+//#include <pcl/features/from_meshes.h>
+//#include <pcl/surface/organized_fast_mesh.h>
 #include "utils.h"
 
 
-#define THRESHOLD_SCORE_GICP 0.05
+#define THRESHOLD_SCORE_GICP 0.05//0.05
 
-#define THRESHOLD_POSITIVE_CLASS 0.1
+#define THRESHOLD_POSITIVE_CLASS 0.05//0.1
 
 //using namespace mrsmap;
 
@@ -46,7 +46,14 @@ public:
 	double confidence; //the confidence about this detection
 	Eigen::Matrix4f transform; //the transformation from the model to the current camera frame of reference
 	Point3d position;
+
+	static bool sort_detections( const Detection& d1, const Detection& d2 )
+	{
+		return d1.confidence < d2.confidence;
+	}
 };
+
+
 
 class ObjectDetector {
 public:
@@ -84,9 +91,9 @@ public:
 	 bool test_data(std::vector<Segment*>& test_segments,Mat& original_img, Mat& original_depth,vector<Mat>& masks, Mat& debug, vector<Point3d>& slc_position, vector<Point3d>& slc_orientation, bool unify = true);
 
 
-	 void normalize_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud,Point3d& gravity_center);
+	 static void normalize_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud,Point3d& gravity_center);
 
-	 void normalize_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud,Point3d& gravity_center,Eigen::Matrix4f& projectionTransform);
+	 static void normalize_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud,Point3d& gravity_center,Eigen::Matrix4f& projectionTransform);
 
 	 void draw_contours_detections(cv::Mat& src, vector<cv::Mat>& masks,
 	 		cv::Mat& debug);
@@ -149,7 +156,7 @@ private:
 	//path to the features data of the SVM that we might want to temporally store
 	std::string svm_tmp_data;
 
-	const static int MIN_POINTS_TO_SUBSAMPLE = 100;
+	const static int MIN_POINTS_TO_SUBSAMPLE = 50;
 
 
 	void display_cloud(PlainCloudptr& cloud);

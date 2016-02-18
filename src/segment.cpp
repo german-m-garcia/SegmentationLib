@@ -296,13 +296,14 @@ void Segment::addPcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud) {
 void Segment::computeFeatures() {
 
 	if(dimensions3DMat_.cols != 0){
+
 		computeHistogram();
 		computeHuMoments();
 		//cout <<"dimensions3DMat_="<<dimensions3DMat_<<endl;
 		visualFeatures_ = Mat(1,
-				NUMBER_VISUAL_FEATS + huMat_.cols + dimensions3DMat_.cols, CV_32FC1);
-		vector<Mat> vectorFeats = { h_hist.t(), s_hist.t(), v_hist.t(), huMat_,
-				dimensions3DMat_ };
+				NUMBER_VISUAL_FEATS + huMat_.cols /*+ dimensions3DMat_.cols*/, CV_32FC1);
+		vector<Mat> vectorFeats = { h_hist.t(), s_hist.t(), v_hist.t(), huMat_  /*,
+				dimensions3DMat_ */};
 		hconcat(vectorFeats, visualFeatures_);
 	}
 	else if (vfhMat_.cols != 0) {
@@ -339,6 +340,10 @@ void Segment::computeHuMoments() {
 void Segment::computeHistogram() {
 	assert(mat_original_colour_.data);
 
+	//convert to HSV
+	cv::Mat hsv_mat;
+	cv::cvtColor(mat_original_colour_, hsv_mat, CV_BGR2HSV);
+
 	mask_ = Mat::zeros(mat_original_colour_.rows, mat_original_colour_.cols,
 			CV_8UC1);
 	//threshold grayscale to binary image
@@ -347,8 +352,8 @@ void Segment::computeHistogram() {
 	//imshow("original_",original_);
 	//waitKey(0);
 	/// Separate the image in 3 places ( B, G and R )
-	vector<Mat> bgr_planes;
-	split(mat_original_colour_, bgr_planes);
+	vector<Mat> hsv_planes;
+	split(hsv_mat, hsv_planes);
 
 	/// Establish the number of bins
 	int histSize = NHISTOGRAMBINS;
@@ -369,11 +374,11 @@ void Segment::computeHistogram() {
 //		waitKey(0);
 
 	/// Compute the histograms:
-	calcHist(&bgr_planes[0], 1, 0, mask_, h_hist, 1, &histSize, &histRange_h,
+	calcHist(&hsv_planes[0], 1, 0, mask_, h_hist, 1, &histSize, &histRange_h,
 			uniform, accumulate);
-	calcHist(&bgr_planes[1], 1, 0, mask_, s_hist, 1, &histSize, &histRange_sv,
+	calcHist(&hsv_planes[1], 1, 0, mask_, s_hist, 1, &histSize, &histRange_sv,
 			uniform, accumulate);
-	calcHist(&bgr_planes[2], 1, 0, mask_, v_hist, 1, &histSize, &histRange_sv,
+	calcHist(&hsv_planes[2], 1, 0, mask_, v_hist, 1, &histSize, &histRange_sv,
 			uniform, accumulate);
 
 //		//remove NaNs

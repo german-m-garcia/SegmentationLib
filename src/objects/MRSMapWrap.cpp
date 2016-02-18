@@ -13,7 +13,7 @@
 
 #include <pcl/surface/organized_fast_mesh.h>
 #include <pcl/registration/gicp.h>
-#include <pcl/features/from_meshes.h>
+//#include <pcl/features/from_meshes.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/registration/transformation_validation_euclidean.h>
@@ -424,7 +424,7 @@ double MRSMapWrap::generalized_icp(
 
 	// setup Generalized-ICP
 	pcl::GeneralizedIterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> gicp;
-	gicp.setMaxCorrespondenceDistance(999999.0);//0.1);
+	gicp.setMaxCorrespondenceDistance(10.5);//0.1);
 
 	gicp.setInputSource(cloud_1);
 	gicp.setInputTarget(cloud_2);
@@ -434,6 +434,7 @@ double MRSMapWrap::generalized_icp(
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr output(new pcl::PointCloud<pcl::PointXYZRGB>);
 	gicp.align(*output);
 	double score = gicp.getFitnessScore();
+	cout <<" gicp score = "<<score<<endl;
 
 	string text("cloud1");
 	//utils_.display_cloud(cloud_1,text);
@@ -441,19 +442,20 @@ double MRSMapWrap::generalized_icp(
 	//utils_.display_cloud(cloud_2,text);
 	transform = gicp.getFinalTransformation();
 	//cout <<" GICP score="<<score<<endl<<" transform="<<transform<<endl;
+	return score;
 
-	//validate the transformation
-	pcl::registration::TransformationValidationEuclidean<pcl::PointXYZRGB, pcl::PointXYZRGB> tve;
-	tve.setMaxRange (100.005);  // 50cm
-	score = tve.validateTransformation (cloud_1, cloud_2, transform);
-	//cout << "TransformationValidationEuclidean score ="<<score <<endl;
-	double score_2 = tve.validateTransformation (cloud_2, cloud_1, transform.inverse());
-	//cout << "TransformationValidationEuclidean score ="<<score <<endl;
-
-
-	if(score > score_2)
-		return score;
-	else return score_2;
+//	//validate the transformation
+//	pcl::registration::TransformationValidationEuclidean<pcl::PointXYZRGB, pcl::PointXYZRGB> tve;
+//	tve.setMaxRange (100.005);  // 50cm
+//	score = tve.validateTransformation (cloud_1, cloud_2, transform);
+//	cout << "TransformationValidationEuclidean score_1 ="<<score <<endl;
+//	double score_2 = tve.validateTransformation (cloud_2, cloud_1, transform.inverse());
+//	cout << "TransformationValidationEuclidean score_2 ="<<score <<endl;
+//
+//
+//	if(score > score_2)
+//		return score;
+//	else return score_2;
 }
 
 //double MRSMapWrap::register_mrsmaps(
