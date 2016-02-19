@@ -46,6 +46,9 @@ public:
 
 	void preprocess(bool gpu,cv::Mat& src,int scale);
 
+	void share_mat(cv::Mat& src,key_t key);
+
+
 	void mean_shift(cv::Mat& src, cv::Mat& dst, double sp = 15., double sr = 15., double min_size = 30.);
 
 

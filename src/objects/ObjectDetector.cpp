@@ -447,6 +447,7 @@ void ObjectDetector::draw_contours_detections(cv::Mat& src, vector<cv::Mat>& mas
 
 void ObjectDetector::unify_detections(Mat& mask) {
 
+	//values used to be 5 and 2
 	for (int i = 0; i < 5; i++)
 		dilate(mask, mask, Mat());
 
@@ -544,12 +545,20 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 
 	//iterate over each detection and verify it
 	for (Mat mask : masks) {
-		Cloudptr cloud_detection;
+		Cloudptr cloud_detection,save_original_cloud_detection(new pcl::PointCloud<pcl::PointXYZRGB>);
 		Mat tmp_img,tmp_depth;
 		cv::Point3d gravity_center;
 
 		//obtain the point cloud of this detection
+
+		//1-fill the holes in this mask
+		utils_.fill_mask(mask);
+
 		utils_.cropped_pcl_from_mask(original_img,original_depth,mask,cloud_detection, tmp_img,tmp_depth);
+
+		utils_.sub_sample(cloud_detection, save_original_cloud_detection);
+		utils_.remove_outliers(save_original_cloud_detection,save_original_cloud_detection);
+		pcl::copyPointCloud(*save_original_cloud_detection,*cloud_detection);
 
 		//crop the part of the cloud that corresponds to the input segments
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr  cropped_cloud_rotated;
@@ -561,15 +570,15 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 		cv::imshow("current detection",mask);
 
 		string text("candidate detection");
-		//utils_.display_cloud(cropped_cloud_rotated,text);
+		//utils_.display_cloud(save_original_cloud_detection,text);
 
 		Point3d dimensions_3d;
 		utils_.compute_bounding_box(cropped_cloud_rotated,dimensions_3d);
 		std::cout <<"ObjectDetector::test_data detection dimensions: "<<dimensions_3d.x<<" "<<dimensions_3d.y<<" "<<dimensions_3d.z<<std::endl;
 
 		//subsample the point cloud
-		if(cropped_cloud_rotated->size() > MIN_POINTS_TO_SUBSAMPLE)
-			utils_.sub_sample(cropped_cloud_rotated, cropped_cloud_rotated);
+		//if(cropped_cloud_rotated->size() > MIN_POINTS_TO_SUBSAMPLE)
+		//	utils_.sub_sample(cropped_cloud_rotated, cropped_cloud_rotated);
 		if(cropped_cloud_rotated->size() < 20){
 			cout <<" discarding candidate of "<<cropped_cloud_rotated->size()<<" points"<<endl;
 			continue;
@@ -614,7 +623,9 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 			Detection detection;
 			detection.cloud = pcl::PointCloud<pcl::PointXYZRGB>::Ptr(
 						new pcl::PointCloud<pcl::PointXYZRGB>);
-				pcl::copyPointCloud(*model_cloud, *detection.cloud);
+			//	pcl::copyPointCloud(*model_cloud, *detection.cloud);
+			pcl::copyPointCloud(*save_original_cloud_detection, *detection.cloud);
+
 
 			detection.confidence = min_score;
 			detection.position = gravity_center;

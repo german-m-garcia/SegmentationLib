@@ -197,8 +197,8 @@ void SVMWrapper::load_current_data(std::string& path){
 		fs["labels"] >> labels;
 		fs.release();
 
-		cout <<"trainingData="<<endl;
-		cout <<trainingData<<endl;
+		//cout <<"trainingData="<<endl;
+		//cout <<trainingData<<endl;
 	}
 
 

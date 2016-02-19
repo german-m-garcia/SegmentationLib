@@ -10,8 +10,17 @@
 #include "segment.h"
 #include <string>
 
+//shared memory
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+
 using namespace std;
 using namespace cv;
+
+int sizeofmat(cv::Mat& mat) {
+    return mat.rows * mat.step;
+}
 
 MSSegmentation::MSSegmentation() {
 	// TODO Auto-generated constructor stub
@@ -202,22 +211,76 @@ void MSSegmentation::preprocess(bool gpu, cv::Mat& src, int scale) {
 #endif
 }
 
+void MSSegmentation::share_mat(cv::Mat& src,key_t key){
+	int shmid;
+	uchar *vdisp;
+
+	CvMat *s = cvCreateMat(src.rows, src.cols, src.type());
+	CvMat *tmp = cvCreateMat(src.rows, src.cols, src.type());
+
+	const size_t vdispsize = sizeofmat(src);
+	CvMat stub;
+	CvSize imageSize = cvSize(src.rows, src.cols);
+
+	IplImage *color = cvCreateImage(imageSize, 8, 3);
+	IplImage *gray = cvCreateImage(imageSize, 8, 1);
+
+	/* Create the segment */
+	if ((shmid = shmget(key, vdispsize, IPC_CREAT | 0666)) < 0) {
+		perror("shmget");
+		exit(1);
+	}
+
+	/* Attach the segment to our data space */
+	if ((vdisp = (uchar *) shmat(shmid, NULL, 0)) == (uchar *) -1) {
+		perror("shmat");
+		exit(1);
+	}
+
+	s->data.ptr = vdisp;
+
+
+
+	memcpy((uchar*)(s->data.ptr), src.data,vdispsize);
+
+//	for (int row = 0; row < src->rows; row++) {
+//		const uchar* ptr = (const uchar*) (src->data.ptr + row * src->step);
+//		memcpy((uchar*)(s->data.ptr + row * s->step), ptr, src->step);
+//	}
+
+}
+
 void MSSegmentation::mean_shift(cv::Mat& src, cv::Mat& dst, double sp, double sr,
 		double min_size) {
 
 
 	Mat img2;
 
-	//cout <<">bilateralFilter..."<<endl;
+//	key_t key = 1556;
+//	share_mat(src,key);
+//	return;
 
-	cv::imwrite("/home/martin/workspace/EGBISegmentation/build/input.png",src);
+
+	//cv::imwrite("/home/martin/workspace/EGBISegmentation/build/input.png",src);
+	cv::FileStorage fs("/home/martin/workspace/EGBISegmentation/build/input.xml", cv::FileStorage::WRITE);
+	fs << "img" << src;
+	fs.release();
+
+
 	cout <<" saved input image for segmentation"<<endl;
-	std::string call("~/workspace/EGBISegmentation/build/ms_segment ~/workspace/EGBISegmentation/build/input.png ");
-	call = call + utils_.stringify(sp)+" "+ utils_.stringify(sr)+" "+ utils_.stringify(min_size)+"  ~/workspace/EGBISegmentation/build/out.png";
+	std::string call("~/workspace/EGBISegmentation/build/ms_segment ~/workspace/EGBISegmentation/build/input.xml ");
+	call = call + utils_.stringify(sp)+" "+ utils_.stringify(sr)+" "+ utils_.stringify(min_size)+"  ~/workspace/EGBISegmentation/build/out.xml";
 	int rc =std::system (call.c_str());
 	cout <<" system call returned "<<rc<<endl;
 	//open the segmentation result
-	dst = imread("/home/martin/workspace/EGBISegmentation/build/out.png",CV_LOAD_IMAGE_COLOR);
+	//dst = imread("/home/martin/workspace/EGBISegmentation/build/out.png",CV_LOAD_IMAGE_COLOR);
+
+	cv::FileStorage fs_read("/home/martin/workspace/EGBISegmentation/build/out.xml", cv::FileStorage::READ);
+	if (fs_read.isOpened()) {
+
+		fs_read["img"] >> dst;
+		fs_read.release();
+	}
 	//read_segments(src,dst);
 
 }

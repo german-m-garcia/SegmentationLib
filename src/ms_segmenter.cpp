@@ -8,6 +8,9 @@
 #include "segmentation.h"
 #include "ms_segmentation.h"
 
+#include <chrono>
+#include <thread>
+
 using namespace std;
 using namespace cv;
 
@@ -32,10 +35,12 @@ int main(int argc, char** argv) {
 
 	//use mean shift segmentation
 	while(true){
-		MSSegmentation ms_segmentation(img0, false, 4, 2);
+		MSSegmentation ms_segmentation(img0, false, 3, 2);
 		ms_segmentation.segment_pyramid(15,15,30);
-		ms_segmentation.map_segments(0);
-		dst =ms_segmentation.getOutputSegmentsPyramid()[0];
+		//ms_segmentation.map_segments(0);
+
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		//dst =ms_segmentation.getOutputSegmentsPyramid()[0];
 		//imwrite(outputPath, dst);
 	}
 

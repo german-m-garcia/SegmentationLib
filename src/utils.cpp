@@ -1011,12 +1011,12 @@ void Utils::remove_outliers(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
 
 	//median filter: introduces new points where there were none
 
-	pcl::MedianFilter<pcl::PointXYZRGB> fbf;
-	fbf.setInputCloud (src_cloud);
-	fbf.setMaxAllowedMovement (10);
-	fbf.setWindowSize (5);
-	fbf.filter (*tmp_cloud);
-	dst_cloud=tmp_cloud;
+//	pcl::MedianFilter<pcl::PointXYZRGB> fbf;
+//	fbf.setInputCloud (src_cloud);
+//	fbf.setMaxAllowedMovement (10);
+//	fbf.setWindowSize (5);
+//	fbf.filter (*tmp_cloud);
+//	dst_cloud=tmp_cloud;
 
 
 
@@ -1027,14 +1027,14 @@ void Utils::remove_outliers(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
 //	sor.setStddevMulThresh(1.0);
 //	sor.filter(*dst_cloud);
 
-//	pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> outrem;
-//	// build the filter
-//	outrem.setInputCloud(src_cloud);
-//	outrem.setRadiusSearch(0.01);
-//	outrem.setMinNeighborsInRadius(200);
-//	// apply filter
-//	outrem.filter(*tmp_cloud);
-//	dst_cloud = tmp_cloud;
+	pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> outrem;
+	// build the filter
+	outrem.setInputCloud(src_cloud);
+	outrem.setRadiusSearch(0.1);
+	outrem.setMinNeighborsInRadius(10);
+	// apply filter
+	outrem.filter(*tmp_cloud);
+	dst_cloud = tmp_cloud;
 }
 
 /*
@@ -1311,6 +1311,20 @@ void Utils::addPoints(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud, pcl::Po
 	for(PointXYZRGB& p: *src_cloud){
 		dst_cloud->push_back(p);
 	}
+}
+
+void Utils::fill_mask(cv::Mat& mask){
+	vector<vector<cv::Point> > contours;
+	vector<cv::Vec4i> hierarchy;
+
+	/// Find contours
+	cv::findContours(mask, contours, hierarchy, cv::RETR_CCOMP,
+			CV_CHAIN_APPROX_NONE, cv::Point(0, 0));
+	cv::Scalar color = Scalar(255);
+	//drawContours(drawing, contours, i, color, 2, 8, hierarchy, 0, Point());
+
+	int thickness = -1;
+	cv::drawContours(mask, contours, -1, color, thickness);
 }
 
 void Utils::sub_sample(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud){

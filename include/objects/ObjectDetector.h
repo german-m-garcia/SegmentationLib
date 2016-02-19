@@ -20,7 +20,7 @@
 #include "utils.h"
 
 
-#define THRESHOLD_SCORE_GICP 0.05//0.05
+#define THRESHOLD_SCORE_GICP 0.1//0.05
 
 #define THRESHOLD_POSITIVE_CLASS 0.05//0.1
 

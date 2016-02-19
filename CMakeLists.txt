@@ -120,6 +120,7 @@ add_library(SEGMENTATION SHARED
    ${PROJECT_SOURCE_DIR}/utils.cpp  
    #hack to work with PCL 1.7
    ${PROJECT_SOURCE_DIR}/pcl_hack/uniform_sampling.cpp
+     
    
    #remove if using the latest PCL 
    #${PROJECT_SOURCE_DIR}/lccp_segmentation.cpp
