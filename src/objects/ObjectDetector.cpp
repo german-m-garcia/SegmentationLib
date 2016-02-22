@@ -535,6 +535,9 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 	mask = mask > 0;
 	if(unify)
 		unify_detections(mask);
+	else{
+		dilate(mask,mask,Mat());
+	}
 
 	//split the mask into individual detections
 	vector<Rect> rects;
@@ -553,6 +556,9 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 
 		//1-fill the holes in this mask
 		utils_.fill_mask(mask);
+		//stupid point cloud!!
+		erode(mask, mask, Mat());
+		//erode(mask, mask, Mat());
 
 		utils_.cropped_pcl_from_mask(original_img,original_depth,mask,cloud_detection, tmp_img,tmp_depth);
 
@@ -572,9 +578,9 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 		string text("candidate detection");
 		//utils_.display_cloud(save_original_cloud_detection,text);
 
-		Point3d dimensions_3d;
-		utils_.compute_bounding_box(cropped_cloud_rotated,dimensions_3d);
-		std::cout <<"ObjectDetector::test_data detection dimensions: "<<dimensions_3d.x<<" "<<dimensions_3d.y<<" "<<dimensions_3d.z<<std::endl;
+		Point3d detection_dimensions_3d;
+		utils_.compute_bounding_box(cropped_cloud_rotated,detection_dimensions_3d);
+		std::cout <<"ObjectDetector::test_data detection dimensions: "<<detection_dimensions_3d.x<<" "<<detection_dimensions_3d.y<<" "<<detection_dimensions_3d.z<<std::endl;
 
 		//subsample the point cloud
 		//if(cropped_cloud_rotated->size() > MIN_POINTS_TO_SUBSAMPLE)
@@ -590,40 +596,50 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 		double min_score = 99999.;
 		Eigen::Matrix4f best_transform;
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr model_cloud;
-		for (MRSMapWrap& stored_map : mrsmaps_) {
-			//and try to register the point cloud with them
 
-			Eigen::Matrix4f model_transform;
-			double score = stored_map.test_cloud(cropped_cloud_rotated,model_transform);
-			if(score < min_score){
-				min_score = score;
-				best_transform = model_transform;
-				model_cloud = stored_map.getModelCloud();
-			}
+		//get the model of the object
+		MRSMapWrap& stored_map = mrsmaps_[0];
+		Point3d model_dimensions_3d;
+		model_cloud = stored_map.getModelCloud();
+		utils_.compute_bounding_box(model_cloud,model_dimensions_3d);
+		std::cout <<"ObjectDetector::test_data model_dimensions_3d dimensions: "<<model_dimensions_3d.x<<" "<<model_dimensions_3d.y<<" "<<model_dimensions_3d.z<<std::endl;
 
-		}
+
+		double score_x = model_dimensions_3d.x > detection_dimensions_3d.x ? detection_dimensions_3d.x/model_dimensions_3d.x: model_dimensions_3d.x/detection_dimensions_3d.x;
+		double score_y = model_dimensions_3d.y > detection_dimensions_3d.y ? detection_dimensions_3d.y/model_dimensions_3d.y: model_dimensions_3d.y/detection_dimensions_3d.y;
+		double score_z = model_dimensions_3d.z > detection_dimensions_3d.z ? detection_dimensions_3d.z/model_dimensions_3d.z: model_dimensions_3d.z/detection_dimensions_3d.z;
+
+		//average the scores obtained for each dimension of the detection
+		min_score = 1 - (score_x+score_y+score_z)/3.;
+		Eigen::Matrix4f model_transform;
+		//register the model to the detection
+		stored_map.test_cloud(cropped_cloud_rotated,model_transform);
+		best_transform = model_transform;
+
+
 		text = "detected model cloud";
 
-		cout << "> ObjectDetector::test_data min_score GICP="<<min_score<<endl;
-		//cv::waitKey(0);
 
 		if(min_score < threshold_score_gicp_){
 			masks_verified.push_back(mask);
 
 			//transform the model to the frame of reference cloud
+
+			//the transform of the model to the detection in the normalized frame of reference
 			Eigen::Matrix4f transform_1 = best_transform.inverse(); //????
+			//the transform from the original pose of the detection to the normalized frame of reference
 			Eigen::Matrix4f transform_2 = projectionTransform.inverse();
+
 			//shift the point cloud to the origin
-			Point3d gravity_shift(-gravity_center.x,-gravity_center.y,-gravity_center.z);
-			pcl::transformPointCloud(*model_cloud, *model_cloud, transform_1);
-			pcl::transformPointCloud(*model_cloud, *model_cloud, transform_2);
-			utils_.subtract_gravity_center(model_cloud, gravity_shift);
+//			Point3d gravity_shift(-gravity_center.x,-gravity_center.y,-gravity_center.z);
+//			pcl::transformPointCloud(*model_cloud, *model_cloud, transform_1);
+//			pcl::transformPointCloud(*model_cloud, *model_cloud, transform_2);
+//			utils_.subtract_gravity_center(model_cloud, gravity_shift);
 			//utils_.display_cloud(model_cloud,text);
 
 			Detection detection;
-			detection.cloud = pcl::PointCloud<pcl::PointXYZRGB>::Ptr(
-						new pcl::PointCloud<pcl::PointXYZRGB>);
-			//	pcl::copyPointCloud(*model_cloud, *detection.cloud);
+
+			pcl::copyPointCloud(*model_cloud, *detection.model_cloud);
 			pcl::copyPointCloud(*save_original_cloud_detection, *detection.cloud);
 
 
@@ -675,6 +691,9 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 	mask = mask > 0;
 	if(unify)
 		unify_detections(mask);
+	else{
+		dilate(mask,mask,Mat());
+	}
 
 	vector<Rect> rects;
 	split_detections_masks_rects(mask, rects, masks);

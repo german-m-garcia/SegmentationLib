@@ -20,7 +20,7 @@
 #include "utils.h"
 
 
-#define THRESHOLD_SCORE_GICP 0.1//0.05
+#define THRESHOLD_SCORE_GICP 0.4//0.05
 
 #define THRESHOLD_POSITIVE_CLASS 0.05//0.1
 
@@ -42,14 +42,24 @@ using Vec4i = cv::Vec4i;
 
 class Detection {
 public:
-	Cloudptr cloud; //the object model point cloud in the current camera frame of reference
+
+	Detection():confidence(0), position(0.,0.,0.){
+		cloud = pcl::PointCloud<pcl::PointXYZRGB>::Ptr(
+								new pcl::PointCloud<pcl::PointXYZRGB>);
+		model_cloud = pcl::PointCloud<pcl::PointXYZRGB>::Ptr(
+										new pcl::PointCloud<pcl::PointXYZRGB>);
+	}
+
+	Cloudptr model_cloud; //the object model point cloud in the current camera frame of reference
+	Cloudptr cloud; //the detection point cloud in the current camera frame of reference
 	double confidence; //the confidence about this detection
 	Eigen::Matrix4f transform; //the transformation from the model to the current camera frame of reference
 	Point3d position;
 
 	static bool sort_detections( const Detection& d1, const Detection& d2 )
 	{
-		return d1.confidence < d2.confidence;
+		//return d1.confidence < d2.confidence;
+		return d1.position.dot(d1.position) < d2.position.dot(d2.position);
 	}
 };
 

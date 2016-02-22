@@ -87,6 +87,12 @@ public:
 
 	void compute_pca(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pca_cloud,  Eigen::Matrix3f& eigenVectors);
 
+	double icp(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_1,
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_2,Eigen::Matrix4f& transform);
+
+	double validate_transform(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_1,
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_2,Eigen::Matrix4f& transform);
+
 	void compute_pca_alt(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pca_cloud, Eigen::Matrix3f& eigenVectors);
 
 	void euler_from_R(Eigen::Matrix3f R,Point3d& angles);

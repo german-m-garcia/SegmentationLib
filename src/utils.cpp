@@ -36,6 +36,9 @@
 //#include <pcl/filters/moment_of_inertia_estimation.h>
 
 #include <pcl/surface/organized_fast_mesh.h>
+#include <pcl/common/transforms.h>
+#include <pcl/registration/transformation_validation_euclidean.h>
+#include <pcl/registration/icp.h>
 
 
 
@@ -1031,10 +1034,52 @@ void Utils::remove_outliers(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
 	// build the filter
 	outrem.setInputCloud(src_cloud);
 	outrem.setRadiusSearch(0.1);
-	outrem.setMinNeighborsInRadius(10);
+	outrem.setMinNeighborsInRadius(40);
 	// apply filter
 	outrem.filter(*tmp_cloud);
 	dst_cloud = tmp_cloud;
+}
+
+double Utils::icp(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_1,
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_2,Eigen::Matrix4f& transform) {
+
+
+	pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
+	icp.setInputSource(cloud_1);
+	icp.setInputTarget(cloud_2);
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr Final(
+			new pcl::PointCloud<pcl::PointXYZRGB>);
+	icp.align(*Final);
+	double score = icp.getFitnessScore();
+	std::cout << "has converged:" << icp.hasConverged() << " score: "
+			<< score << std::endl;
+	transform =  icp.getFinalTransformation();
+	//std::cout << icp.getFinalTransformation() << std::endl;
+
+
+	//validate the transformation
+//	pcl::registration::TransformationValidationEuclidean<pcl::PointXYZRGB, pcl::PointXYZRGB> tve;
+//	tve.setMaxRange (0.5);  // 50cm
+//	double score = tve.validateTransformation (cloud_1, cloud_2, transform);
+//	cout << "TransformationValidationEuclidean score ="<<score <<endl;
+//	score = tve.validateTransformation (cloud_2, cloud_1, transform.inverse());
+//	cout << "TransformationValidationEuclidean score ="<<score <<endl;
+
+
+	return score;
+
+}
+
+double Utils::validate_transform(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_1,
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_2,Eigen::Matrix4f& transform){
+	//validate the transformation
+	pcl::registration::TransformationValidationEuclidean<pcl::PointXYZRGB, pcl::PointXYZRGB> tve;
+	tve.setMaxRange (0.5);  // 50cm
+	double score = tve.validateTransformation (cloud_1, cloud_2, transform);
+	cout << "TransformationValidationEuclidean score ="<<score <<endl;
+	score = tve.validateTransformation (cloud_2, cloud_1, transform.inverse());
+	cout << "TransformationValidationEuclidean score ="<<score <<endl;
+	return score;
 }
 
 /*
@@ -1332,7 +1377,7 @@ void Utils::sub_sample(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,pcl::Po
 	pcl::UniformSampling<pcl::PointXYZRGB> uni_sampling;
 	uni_sampling.setInputCloud(src_cloud);
 	//uni_sampling.setRadiusSearch(0.02f);
-	uni_sampling.setRadiusSearch(0.01f);
+	uni_sampling.setRadiusSearch(0.02f);
 	//PCL 1.8
 	uni_sampling.filter(*tmp_cloud);
 	//uni_sampling.detectKeypoints(*tmp_cloud);
