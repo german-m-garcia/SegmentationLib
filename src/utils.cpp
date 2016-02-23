@@ -317,7 +317,7 @@ void Utils::display_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 	pcl::visualization::PCLVisualizer viewer(text);
 	//viewer.setBackgroundColor(0, 0, 0);
 	viewer.addPointCloud < pcl::PointXYZRGB > (cloud, text);
-	viewer.addCoordinateSystem(1.0);
+	viewer.addCoordinateSystem(0.5);
 	viewer.setPointCloudRenderingProperties(
 			pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, text);
 	viewer.spin();
@@ -1050,8 +1050,8 @@ void Utils::remove_SCREW_outliers(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cl
 	pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> outrem;
 	// build the filter
 	outrem.setInputCloud(src_cloud);
-	outrem.setRadiusSearch(0.1);
-	outrem.setMinNeighborsInRadius(5);
+	outrem.setRadiusSearch(0.05);
+	outrem.setMinNeighborsInRadius(25);
 	// apply filter
 	outrem.filter(*tmp_cloud);
 	dst_cloud = tmp_cloud;

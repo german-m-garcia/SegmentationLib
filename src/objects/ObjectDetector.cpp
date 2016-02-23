@@ -572,18 +572,23 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 		//erode(mask, mask, Mat());
 
 		utils_.cropped_pcl_from_mask(original_img,original_depth,mask,cloud_detection, tmp_img,tmp_depth);
-		//string text("candidate detection");
-		//utils_.display_cloud(cloud_detection,text);
+
 
 		cout <<" detection of "<<cloud_detection->size()<<" points "<<endl;
 		if(cloud_detection->size() > MIN_POINTS_TO_SUBSAMPLE){
-			if(low_sub_sampling)
+			//if it's a screw
+			if(low_sub_sampling){
 				utils_.sub_sample_screw(cloud_detection, save_original_cloud_detection);
+				utils_.remove_SCREW_outliers(save_original_cloud_detection,save_original_cloud_detection);
+			}
 
-			else
+			else{
 				utils_.sub_sample(cloud_detection, save_original_cloud_detection);
+				utils_.remove_outliers(save_original_cloud_detection,save_original_cloud_detection);
 
-			utils_.remove_outliers(save_original_cloud_detection,save_original_cloud_detection);
+			}
+
+
 			pcl::copyPointCloud(*save_original_cloud_detection,*cloud_detection);
 		}
 		else{
@@ -591,6 +596,8 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 		}
 		cout <<" filtered detection of "<<cloud_detection->size()<<" points "<<endl;
 
+		string text("candidate detection");
+		utils_.display_cloud(cloud_detection,text);
 
 		//crop the part of the cloud that corresponds to the input segments
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr  cropped_cloud_rotated;
@@ -599,7 +606,7 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 		Eigen::Matrix4f projectionTransform;
 		normalize_pcl(cloud_detection, cropped_cloud_rotated, gravity_center,projectionTransform);
 
-		cv::imshow("current detection",mask);
+
 
 
 
@@ -635,7 +642,10 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 		double score_z = model_dimensions_3d.z > detection_dimensions_3d.z ? detection_dimensions_3d.z/model_dimensions_3d.z: model_dimensions_3d.z/detection_dimensions_3d.z;
 
 		//average the scores obtained for each dimension of the detection
-		min_score = 1 - (score_x+score_y+score_z)/3.;
+		if(low_sub_sampling)
+			min_score = 1 - (score_x*0.5 +score_y*0.25+score_z*0.25)/3.;
+		else
+			min_score = 1 - (score_x+score_y+score_z)/3.;
 		Eigen::Matrix4f model_transform;
 		//register the model to the detection
 		stored_map.test_cloud(cropped_cloud_rotated,model_transform);
@@ -674,6 +684,8 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 		}
 		else
 			cout <<" discarding candidate because of dimensions score"<<endl;
+		cv::imshow("current detection",mask);
+		cv::waitKey(0);
 
 
 	}

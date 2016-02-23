@@ -130,7 +130,8 @@ double MRSMapWrap::test_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,Eige
 		return 0.;
 	}
 
-	double score = generalized_icp(cloud, model_cloud_,transform);
+	//double score = generalized_icp(cloud, model_cloud_,transform);
+	double score = icp(cloud, model_cloud_,transform);
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp_cloud(
 			new pcl::PointCloud<pcl::PointXYZRGB>);
 
