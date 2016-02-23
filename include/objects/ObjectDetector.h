@@ -78,6 +78,10 @@ public:
 
 	void save_current_data();
 
+	void activate_low_sub_sampling();
+
+	void deactivate_low_sub_sampling();
+
 	void test_pcl_segments(cv::Mat&img, cv::Mat& depth_float,vector<Segment*>& fg_segments);
 
 	void add_selected_segments(Mat&img, Mat& depth_float,vector<Segment*>& fg_segments,vector<Segment*>& bg_segments);
@@ -167,6 +171,8 @@ private:
 	std::string svm_tmp_data;
 
 	const static int MIN_POINTS_TO_SUBSAMPLE = 50;
+
+	bool low_sub_sampling;
 
 
 	void display_cloud(PlainCloudptr& cloud);

@@ -1040,6 +1040,25 @@ void Utils::remove_outliers(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
 	dst_cloud = tmp_cloud;
 }
 
+void Utils::remove_SCREW_outliers(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud) {
+
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+
+
+
+	pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> outrem;
+	// build the filter
+	outrem.setInputCloud(src_cloud);
+	outrem.setRadiusSearch(0.1);
+	outrem.setMinNeighborsInRadius(5);
+	// apply filter
+	outrem.filter(*tmp_cloud);
+	dst_cloud = tmp_cloud;
+}
+
+
+
 double Utils::icp(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_1,
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_2,Eigen::Matrix4f& transform) {
 
@@ -1378,6 +1397,21 @@ void Utils::sub_sample(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,pcl::Po
 	uni_sampling.setInputCloud(src_cloud);
 	//uni_sampling.setRadiusSearch(0.02f);
 	uni_sampling.setRadiusSearch(0.02f);
+	//PCL 1.8
+	uni_sampling.filter(*tmp_cloud);
+	//uni_sampling.detectKeypoints(*tmp_cloud);
+	dst_cloud = tmp_cloud;
+
+
+
+}
+
+void Utils::sub_sample_screw(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud){
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+	pcl::UniformSampling<pcl::PointXYZRGB> uni_sampling;
+	uni_sampling.setInputCloud(src_cloud);
+	//uni_sampling.setRadiusSearch(0.02f);
+	uni_sampling.setRadiusSearch(0.005f);
 	//PCL 1.8
 	uni_sampling.filter(*tmp_cloud);
 	//uni_sampling.detectKeypoints(*tmp_cloud);

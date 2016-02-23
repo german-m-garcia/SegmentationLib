@@ -29,7 +29,8 @@
 //#include "cuda_runtime.h"
 
 ObjectDetector::ObjectDetector() :
-		threshold_positive_class(THRESHOLD_POSITIVE_CLASS),threshold_score_gicp_(THRESHOLD_SCORE_GICP), object_name_("") {
+		threshold_positive_class(THRESHOLD_POSITIVE_CLASS),threshold_score_gicp_(THRESHOLD_SCORE_GICP), object_name_(""),
+		low_sub_sampling(false){
 	// TODO Auto-generated constructor stub
 
 }
@@ -38,7 +39,7 @@ ObjectDetector::ObjectDetector(int mode, std::string svm_path,
 		std::string model_path) :
 		svm(svm_path), model_path_(model_path), train_(mode == TRAIN_MODE), test_(
 				mode == TEST_MODE), threshold_positive_class(THRESHOLD_POSITIVE_CLASS),threshold_score_gicp_(THRESHOLD_SCORE_GICP), object_name_(
-				""), svm_tmp_data(model_path_ + "/svmwrapper.data") {
+				""), svm_tmp_data(model_path_ + "/svmwrapper.data"), low_sub_sampling(false) {
 	cout << " svm_path=" << svm_path << endl;
 	cout << " model_path=" << model_path << endl;
 	if (test_) {
@@ -56,7 +57,7 @@ ObjectDetector::ObjectDetector(int mode, std::string svm_path,
 		string model_path, string object_name) :
 		svm(svm_path), model_path_(model_path), train_(mode == TRAIN_MODE), test_(
 				mode == TEST_MODE), threshold_positive_class(THRESHOLD_POSITIVE_CLASS),threshold_score_gicp_(THRESHOLD_SCORE_GICP), object_name_(
-				object_name), svm_tmp_data(model_path_ + "/svmwrapper.data") {
+				object_name), svm_tmp_data(model_path_ + "/svmwrapper.data"), low_sub_sampling(false) {
 
 	cout << " svm_path=" << svm_path << endl;
 	cout << " model_path=" << model_path << endl;
@@ -510,6 +511,16 @@ int ObjectDetector::get_detections(std::vector<Segment*>& test_segments,
 	return ndetections;
 }
 
+void ObjectDetector::activate_low_sub_sampling(){
+	this->low_sub_sampling = true;
+}
+
+void ObjectDetector::deactivate_low_sub_sampling(){
+	this->low_sub_sampling = false;
+}
+
+
+
 bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 		Mat& original_img, Mat& original_depth, vector<Mat>& masks,
 		Mat& debug,vector<Detection>& detections_vector, bool unify) {
@@ -561,10 +572,25 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 		//erode(mask, mask, Mat());
 
 		utils_.cropped_pcl_from_mask(original_img,original_depth,mask,cloud_detection, tmp_img,tmp_depth);
+		//string text("candidate detection");
+		//utils_.display_cloud(cloud_detection,text);
 
-		utils_.sub_sample(cloud_detection, save_original_cloud_detection);
-		utils_.remove_outliers(save_original_cloud_detection,save_original_cloud_detection);
-		pcl::copyPointCloud(*save_original_cloud_detection,*cloud_detection);
+		cout <<" detection of "<<cloud_detection->size()<<" points "<<endl;
+		if(cloud_detection->size() > MIN_POINTS_TO_SUBSAMPLE){
+			if(low_sub_sampling)
+				utils_.sub_sample_screw(cloud_detection, save_original_cloud_detection);
+
+			else
+				utils_.sub_sample(cloud_detection, save_original_cloud_detection);
+
+			utils_.remove_outliers(save_original_cloud_detection,save_original_cloud_detection);
+			pcl::copyPointCloud(*save_original_cloud_detection,*cloud_detection);
+		}
+		else{
+			pcl::copyPointCloud(*cloud_detection,*save_original_cloud_detection);
+		}
+		cout <<" filtered detection of "<<cloud_detection->size()<<" points "<<endl;
+
 
 		//crop the part of the cloud that corresponds to the input segments
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr  cropped_cloud_rotated;
@@ -575,8 +601,7 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 
 		cv::imshow("current detection",mask);
 
-		string text("candidate detection");
-		//utils_.display_cloud(save_original_cloud_detection,text);
+
 
 		Point3d detection_dimensions_3d;
 		utils_.compute_bounding_box(cropped_cloud_rotated,detection_dimensions_3d);
@@ -585,7 +610,7 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 		//subsample the point cloud
 		//if(cropped_cloud_rotated->size() > MIN_POINTS_TO_SUBSAMPLE)
 		//	utils_.sub_sample(cropped_cloud_rotated, cropped_cloud_rotated);
-		if(cropped_cloud_rotated->size() < 20){
+		if(cropped_cloud_rotated->size() < 10){
 			cout <<" discarding candidate of "<<cropped_cloud_rotated->size()<<" points"<<endl;
 			continue;
 		}
@@ -617,7 +642,7 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 		best_transform = model_transform;
 
 
-		text = "detected model cloud";
+		cout<<" score based on dimensions="<<min_score<<endl;
 
 
 		if(min_score < threshold_score_gicp_){
@@ -647,6 +672,8 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 			detection.position = gravity_center;
 			detections_vector.push_back(detection);
 		}
+		else
+			cout <<" discarding candidate because of dimensions score"<<endl;
 
 
 	}

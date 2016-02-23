@@ -38,7 +38,89 @@
 #include "pcl_segmentation.h"
 #include "objects/ObjectDetector.h"
 
+const double PI = 3.141592;
+const double PI_2 = 2* PI;
+const double INTERVAL = 0.01;
+
+void circle_at_height(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,double radius, double z){
+
+	for(double angle = 0.; angle < PI_2; angle += INTERVAL){
+		double x = radius * cos(angle);
+		double y = radius * sin(angle);
+
+		pcl::PointXYZRGB p;
+		p.y = y;
+		p.x = x;
+		p.z = z;
+		p.r = 0;
+		p.g = 0;
+		p.b = 255;
+		cloud->push_back(p);
+	}
+}
+
+void hexagon_at_height(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double z){
+	/*
+	 * | (Y)
+	 * |
+	 * |_____ (X)
+	 *
+	 *
+	 *         -----
+	 *
+	 *    |				|
+	 *    |				|
+	 *
+	 *         -----
+	 *
+	 */
+
+	const double height = 0.035, width = 0.04, side = 0.02;
+
+	//do the upper and lower sides
+	for(double y = -height; y <= height; y += 2*height)
+		for(double x = -side/2.; x < side/2.; x +=INTERVAL){
+
+
+			pcl::PointXYZRGB p;
+			p.y = y;
+			p.x = x;
+			p.z = z;
+			p.r = 0;
+			p.g = 0;
+			p.b = 255;
+			cloud->push_back(p);
+		}
+
+
+}
+
+
+//create SCREW
 int main(int argc, char ** argv) {
+	Utils utils;
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_screw(
+				new pcl::PointCloud<pcl::PointXYZRGB>);
+
+
+
+	double radius = 0.1;
+	for(double z = 0.; z < 0.3; z += 0.01)
+		//circle_at_height(cloud_screw,radius,z);
+		hexagon_at_height(cloud_screw,z);
+
+
+
+	std::string box("screw");
+	Point3d point;
+	//ObjectDetector::normalize_pcl(cloud_SLC,cloud_SLC,point);
+	utils.display_cloud(cloud_screw,box);
+	pcl::io::savePCDFileASCII("/home/martin/bagfiles/screw.pcd", *cloud_screw);
+
+	return 0;
+}
+
+int create_SLC(int argc, char ** argv) {
 	Utils utils;
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_SLC(
 				new pcl::PointCloud<pcl::PointXYZRGB>);
