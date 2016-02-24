@@ -30,7 +30,7 @@
 
 ObjectDetector::ObjectDetector() :
 		threshold_positive_class(THRESHOLD_POSITIVE_CLASS),threshold_score_gicp_(THRESHOLD_SCORE_GICP), object_name_(""),
-		low_sub_sampling(false){
+		low_sub_sampling(false),high_sub_sampling(false){
 	// TODO Auto-generated constructor stub
 
 }
@@ -39,7 +39,7 @@ ObjectDetector::ObjectDetector(int mode, std::string svm_path,
 		std::string model_path) :
 		svm(svm_path), model_path_(model_path), train_(mode == TRAIN_MODE), test_(
 				mode == TEST_MODE), threshold_positive_class(THRESHOLD_POSITIVE_CLASS),threshold_score_gicp_(THRESHOLD_SCORE_GICP), object_name_(
-				""), svm_tmp_data(model_path_ + "/svmwrapper.data"), low_sub_sampling(false) {
+				""), svm_tmp_data(model_path_ + "/svmwrapper.data"), low_sub_sampling(false),high_sub_sampling(false) {
 	cout << " svm_path=" << svm_path << endl;
 	cout << " model_path=" << model_path << endl;
 	if (test_) {
@@ -57,7 +57,7 @@ ObjectDetector::ObjectDetector(int mode, std::string svm_path,
 		string model_path, string object_name) :
 		svm(svm_path), model_path_(model_path), train_(mode == TRAIN_MODE), test_(
 				mode == TEST_MODE), threshold_positive_class(THRESHOLD_POSITIVE_CLASS),threshold_score_gicp_(THRESHOLD_SCORE_GICP), object_name_(
-				object_name), svm_tmp_data(model_path_ + "/svmwrapper.data"), low_sub_sampling(false) {
+				object_name), svm_tmp_data(model_path_ + "/svmwrapper.data"), low_sub_sampling(false),high_sub_sampling(false) {
 
 	cout << " svm_path=" << svm_path << endl;
 	cout << " model_path=" << model_path << endl;
@@ -129,6 +129,14 @@ void ObjectDetector::load_point_clouds() {
 
 	}
 
+}
+
+void ObjectDetector::activate_high_sub_sampling(){
+	this->high_sub_sampling = true;
+}
+
+void ObjectDetector::deactivate_high_sub_sampling(){
+	this->high_sub_sampling = false;
 }
 
 int ObjectDetector::get_number_train_examples(){
@@ -547,7 +555,7 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 	if(unify)
 		unify_detections(mask);
 	else{
-		dilate(mask,mask,Mat());
+		//dilate(mask,mask,Mat());
 	}
 
 	//split the mask into individual detections
@@ -568,7 +576,7 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 		//1-fill the holes in this mask
 		utils_.fill_mask(mask);
 		//stupid point cloud!!
-		erode(mask, mask, Mat());
+		//erode(mask, mask, Mat());
 		//erode(mask, mask, Mat());
 
 		utils_.cropped_pcl_from_mask(original_img,original_depth,mask,cloud_detection, tmp_img,tmp_depth);
@@ -576,8 +584,15 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 
 		cout <<" detection of "<<cloud_detection->size()<<" points "<<endl;
 		if(cloud_detection->size() > MIN_POINTS_TO_SUBSAMPLE){
+
+			//if it's a holder
+			if(high_sub_sampling){
+				cout <<" high_sub_sampling"<<endl;
+				utils_.sub_sample(cloud_detection, save_original_cloud_detection);
+				utils_.remove_HOLDER_outliers(save_original_cloud_detection,save_original_cloud_detection);
+			}
 			//if it's a screw
-			if(low_sub_sampling){
+			else if(low_sub_sampling){
 				utils_.sub_sample_screw(cloud_detection, save_original_cloud_detection);
 				utils_.remove_SCREW_outliers(save_original_cloud_detection,save_original_cloud_detection);
 			}
@@ -590,14 +605,15 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 
 
 			pcl::copyPointCloud(*save_original_cloud_detection,*cloud_detection);
+			//cloud_detection = save_original_cloud_detection;
 		}
 		else{
 			pcl::copyPointCloud(*cloud_detection,*save_original_cloud_detection);
 		}
 		cout <<" filtered detection of "<<cloud_detection->size()<<" points "<<endl;
 
-		string text("candidate detection");
-		utils_.display_cloud(cloud_detection,text);
+		//string text("candidate detection");
+		//utils_.display_cloud(cloud_detection,text);
 
 		//crop the part of the cloud that corresponds to the input segments
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr  cropped_cloud_rotated;
@@ -643,13 +659,26 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 
 		//average the scores obtained for each dimension of the detection
 		if(low_sub_sampling)
-			min_score = 1 - (score_x*0.5 +score_y*0.25+score_z*0.25)/3.;
+			min_score = 1 - (score_x*0.6 + score_y*0.2+ score_z*0.2);// (score_x*0.5 +score_y*0.25+score_z*0.25)/3.;
 		else
 			min_score = 1 - (score_x+score_y+score_z)/3.;
 		Eigen::Matrix4f model_transform;
 		//register the model to the detection
 		stored_map.test_cloud(cropped_cloud_rotated,model_transform);
 		best_transform = model_transform;
+
+//		{
+//			Eigen::Matrix4f transform_1 = best_transform.inverse(); //????
+//			//the transform from the original pose of the detection to the normalized frame of reference
+//			Eigen::Matrix4f transform_2 = projectionTransform.inverse();
+//			//shift the point cloud to the origin
+//			Point3d gravity_shift(-gravity_center.x,-gravity_center.y,-gravity_center.z);
+//			pcl::transformPointCloud(*model_cloud, *model_cloud, transform_1);
+//			pcl::transformPointCloud(*model_cloud, *model_cloud, transform_2);
+//			utils_.subtract_gravity_center(model_cloud, gravity_shift);
+//			utils_.display_cloud(model_cloud,text);
+//		}
+
 
 
 		cout<<" score based on dimensions="<<min_score<<endl;
@@ -665,12 +694,7 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 			//the transform from the original pose of the detection to the normalized frame of reference
 			Eigen::Matrix4f transform_2 = projectionTransform.inverse();
 
-			//shift the point cloud to the origin
-//			Point3d gravity_shift(-gravity_center.x,-gravity_center.y,-gravity_center.z);
-//			pcl::transformPointCloud(*model_cloud, *model_cloud, transform_1);
-//			pcl::transformPointCloud(*model_cloud, *model_cloud, transform_2);
-//			utils_.subtract_gravity_center(model_cloud, gravity_shift);
-			//utils_.display_cloud(model_cloud,text);
+
 
 			Detection detection;
 
@@ -684,8 +708,8 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 		}
 		else
 			cout <<" discarding candidate because of dimensions score"<<endl;
-		cv::imshow("current detection",mask);
-		cv::waitKey(0);
+		//cv::imshow("current detection",mask);
+		//cv::waitKey(0);
 
 
 	}

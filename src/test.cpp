@@ -41,8 +41,49 @@
 const double PI = 3.141592;
 const double PI_2 = 2* PI;
 const double INTERVAL = 0.001;
+const double INTERVAL_FACE = 0.01;
 const double NUT_HEIGHT = 0.014;
+const double HOLDER_HEIGHT = 0.001;
 const double SCREW_HEIGHT = 0.1;
+
+/*
+ *
+ * the placeholder is 15cm x 15cm x 1cm (height)
+ *
+ *
+ */
+void face_at_height(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double z){
+	const double length = 0.15;
+
+	/*
+	 * | (Y)
+	 * |
+	 * |
+	 *   -----------> (X)
+	 *
+	 *  15cm
+	 * ----------
+	 * |		|  15 cm
+	 * |		|
+	 * |--------|
+	 *
+	 *
+	 */
+
+	for(double y = -length/2.; y < length/2.; y += INTERVAL_FACE){
+		for(double x = -length/2.; x < length/2.; x += INTERVAL_FACE){
+
+			pcl::PointXYZRGB p;
+			p.y = y;
+			p.x = x;
+			p.z = z;
+			p.r = 0;
+			p.g = 0;
+			p.b = 255;
+			cloud->push_back(p);
+		}
+	}
+}
 
 void circle_at_height(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,double radius, double z){
 
@@ -136,8 +177,31 @@ void hexagon_at_height(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double z){
 }
 
 
-//create SCREW
 int main(int argc, char ** argv) {
+	Utils utils;
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_holder(
+				new pcl::PointCloud<pcl::PointXYZRGB>);
+
+
+
+	double radius = 0.01;
+
+	for(double z = 0.; z < NUT_HEIGHT; z+= INTERVAL/3.)
+		face_at_height(cloud_holder,z);
+
+
+
+	std::string box("holder");
+	Point3d point;
+	//ObjectDetector::normalize_pcl(cloud_SLC,cloud_SLC,point);
+	utils.display_cloud(cloud_holder,box);
+	pcl::io::savePCDFileASCII("/home/martin/bagfiles/holder.pcd", *cloud_holder);
+
+	return 0;
+}
+
+//create SCREW
+int main_SCREW(int argc, char ** argv) {
 	Utils utils;
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_screw(
 				new pcl::PointCloud<pcl::PointXYZRGB>);

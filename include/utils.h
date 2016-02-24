@@ -98,6 +98,9 @@ public:
 	void euler_from_R(Eigen::Matrix3f R,Point3d& angles);
 
 
+	void remove_HOLDER_outliers(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud) ;
+
 	void remove_SCREW_outliers(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud);
 
 	void remove_outliers(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud);
