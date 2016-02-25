@@ -329,7 +329,6 @@ void Segment::computeFeatures() {
 
 void Segment::computeHuMoments() {
 
-
 	Moments moment = cv::moments(mask_, true);
 	double hu[7];
 	cv::HuMoments(moment, hu);
@@ -337,9 +336,18 @@ void Segment::computeHuMoments() {
 		huMat_.at<float>(0, i) = hu[i];
 }
 
+void Segment::set_original_mat_segment_mat(){
+	//cv::imshow("random_colour_mat_",random_colour_mat_);
+	//cv::imshow("mat_original_colour_",mat_original_colour_);
+	//cv::waitKey(0);
+	mat_original_colour_ = random_colour_mat_;
+
+}
+
 void Segment::computeHistogram() {
 	assert(mat_original_colour_.data);
 
+	set_original_mat_segment_mat();
 	//convert to HSV
 	cv::Mat hsv_mat;
 	cv::cvtColor(mat_original_colour_, hsv_mat, CV_BGR2HSV);
@@ -424,6 +432,8 @@ void Segment::computeHistogram() {
 					Point(bin_w * (i), hist_h - cvRound(v_hist.at<float>(i))),
 					Scalar(0, 0, 255), 2, 8, 0);
 		}
+		cv::imshow("histImage_",histImage_);
+		cv::waitKey(0);
 
 	}
 

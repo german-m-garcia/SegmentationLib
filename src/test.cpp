@@ -43,6 +43,7 @@ const double PI_2 = 2* PI;
 const double INTERVAL = 0.001;
 const double INTERVAL_FACE = 0.01;
 const double NUT_HEIGHT = 0.014;
+const double HOLDER_SIDE = 0.15;
 const double HOLDER_HEIGHT = 0.001;
 const double SCREW_HEIGHT = 0.1;
 
@@ -70,8 +71,8 @@ void face_at_height(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double z){
 	 *
 	 */
 
-	for(double y = -length/2.; y < length/2.; y += INTERVAL_FACE){
-		for(double x = -length/2.; x < length/2.; x += INTERVAL_FACE){
+	for(double y = -length/2.; y <= length/2.; y += INTERVAL_FACE){
+		for(double x = -length/2.; x <= length/2.; x += INTERVAL_FACE){
 
 			pcl::PointXYZRGB p;
 			p.y = y;

@@ -48,6 +48,8 @@ public:
 
 	void computeFeatures();
 
+	void set_original_mat_segment_mat();
+
 	void add_precomputed_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud, pcl::PointCloud<pcl::Normal>::Ptr& normals);
 
 	void addPcl(Mat &original_img, Mat& original_depth);

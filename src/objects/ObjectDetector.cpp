@@ -33,6 +33,7 @@ ObjectDetector::ObjectDetector() :
 		low_sub_sampling(false),high_sub_sampling(false){
 	// TODO Auto-generated constructor stub
 
+
 }
 
 ObjectDetector::ObjectDetector(int mode, std::string svm_path,
@@ -50,6 +51,7 @@ ObjectDetector::ObjectDetector(int mode, std::string svm_path,
 	} else {
 		create_dirs();
 	}
+
 
 }
 
@@ -72,6 +74,7 @@ ObjectDetector::ObjectDetector(int mode, std::string svm_path,
 	} else {
 		create_dirs();
 	}
+
 
 }
 
@@ -133,6 +136,8 @@ void ObjectDetector::load_point_clouds() {
 
 void ObjectDetector::activate_high_sub_sampling(){
 	this->high_sub_sampling = true;
+	if(high_sub_sampling)
+		threshold_score_gicp_=TIGHTER_THRESHOLD_SCORE_GICP;
 }
 
 void ObjectDetector::deactivate_high_sub_sampling(){
@@ -469,6 +474,8 @@ void ObjectDetector::unify_detections(Mat& mask) {
 int ObjectDetector::get_detections(std::vector<Segment*>& test_segments,
 		Mat& original_img, Mat& original_depth, Mat& detections) {
 
+
+	cout <<" calling get_detections"<<endl;
 	/*
 	 * compute the point cloud
 	 */
@@ -488,6 +495,9 @@ int ObjectDetector::get_detections(std::vector<Segment*>& test_segments,
 		seg->add_precomputed_pcl(pcl_cloud, normals);
 		//seg->addPcl(img_1,depth_float);
 		seg->computeFeatures();
+		if(high_sub_sampling){
+			seg->set_original_mat_segment_mat();
+		}
 	}
 
 
@@ -503,7 +513,7 @@ int ObjectDetector::get_detections(std::vector<Segment*>& test_segments,
 	//cout <<"> ObjectDetector::get_detections evaluating the segments"<<endl;
 	for (Segment *seg : test_segments) {
 
-		//cout <<" seg->getClassLabel()="<<seg->getClassLabel()<<endl;
+		cout <<" seg->getClassLabel()="<<seg->getClassLabel()<<endl;
 		if (seg->getClassLabel() > threshold_positive_class) {
 			//cout <<" bounding rect="<<seg->getBoundRect()<<endl;
 			//cout <<"detections.size()="<<detections.size()<<endl;
@@ -513,7 +523,7 @@ int ObjectDetector::get_detections(std::vector<Segment*>& test_segments,
 			//waitKey(0);
 			detections(seg->getBoundRect()) += seg->getRandomColourMat();
 			ndetections++;
-			//cout <<"ndetections="<<ndetections<<endl;
+			cout <<"ndetections="<<ndetections<<endl;
 		}
 	}
 	return ndetections;
@@ -795,6 +805,7 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 void ObjectDetector::add_training_data(
 		std::vector<Segment*>& foreground_segments,
 		std::vector<Segment*>& background_segments) {
+
 
 	cout << "ObjectDetector::foreground_segments.size()="
 			<< foreground_segments.size() << " background_segments="
