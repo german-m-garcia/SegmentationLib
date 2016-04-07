@@ -317,7 +317,7 @@ void Segment::computeFeatures() {
 		hconcat(vectorFeats, visualFeatures_);
 	} else {
 		computeHistogram();
-		//computePCA(contour_);
+		computePCA(contour_);
 		computeHuMoments();
 		visualFeatures_ = Mat(1, NUMBER_VISUAL_FEATS+7, CV_32FC1);
 		vector<Mat> vectorFeats = { h_hist.t(), s_hist.t(), v_hist.t(),

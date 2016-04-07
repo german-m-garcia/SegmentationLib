@@ -21,9 +21,9 @@
 
 
 #define THRESHOLD_SCORE_GICP 0.4//0.05
-#define TIGHTER_THRESHOLD_SCORE_GICP 0.3
+#define TIGHTER_THRESHOLD_SCORE_GICP 0.5 //0.32
 
-#define THRESHOLD_POSITIVE_CLASS 0.05//0.1
+#define THRESHOLD_POSITIVE_CLASS 0.2//0.1
 
 //using namespace mrsmap;
 
@@ -56,12 +56,18 @@ public:
 	double confidence; //the confidence about this detection
 	Eigen::Matrix4f transform; //the transformation from the model to the current camera frame of reference
 	Point3d position;
+	Point2i mid_point; //center of the detection in the image plane
 
 	static bool sort_detections( const Detection& d1, const Detection& d2 )
 	{
-		//return d1.confidence < d2.confidence;
-		return d1.position.dot(d1.position) < d2.position.dot(d2.position);
+		return d1.confidence < d2.confidence;
+		//return d1.position.dot(d1.position) < d2.position.dot(d2.position);
 	}
+
+	static bool sort_detections_right_most( const Detection& d1, const Detection& d2 )
+		{
+			return d1.mid_point.x > d2.mid_point.x;
+		}
 };
 
 
@@ -86,6 +92,8 @@ public:
 	void activate_high_sub_sampling();
 
 	void deactivate_high_sub_sampling();
+
+	void activate_ignore_registration();
 
 	void test_pcl_segments(cv::Mat&img, cv::Mat& depth_float,vector<Segment*>& fg_segments);
 
@@ -178,6 +186,8 @@ private:
 	const static int MIN_POINTS_TO_SUBSAMPLE = 50;
 
 	bool low_sub_sampling, high_sub_sampling;
+
+	bool ignore_registration_;
 
 
 	void display_cloud(PlainCloudptr& cloud);

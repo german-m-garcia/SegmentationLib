@@ -132,6 +132,11 @@ void ObjectDetector::load_point_clouds() {
 
 	}
 
+
+}
+
+void ObjectDetector::activate_ignore_registration(){
+	this->ignore_registration_ = true;
 }
 
 void ObjectDetector::activate_high_sub_sampling(){
@@ -513,7 +518,7 @@ int ObjectDetector::get_detections(std::vector<Segment*>& test_segments,
 	//cout <<"> ObjectDetector::get_detections evaluating the segments"<<endl;
 	for (Segment *seg : test_segments) {
 
-		cout <<" seg->getClassLabel()="<<seg->getClassLabel()<<endl;
+
 		if (seg->getClassLabel() > threshold_positive_class) {
 			//cout <<" bounding rect="<<seg->getBoundRect()<<endl;
 			//cout <<"detections.size()="<<detections.size()<<endl;
@@ -523,7 +528,7 @@ int ObjectDetector::get_detections(std::vector<Segment*>& test_segments,
 			//waitKey(0);
 			detections(seg->getBoundRect()) += seg->getRandomColourMat();
 			ndetections++;
-			cout <<"ndetections="<<ndetections<<endl;
+			cout <<"detection confidence="<<seg->getClassLabel()<<endl;
 		}
 	}
 	return ndetections;
@@ -585,9 +590,8 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 
 		//1-fill the holes in this mask
 		utils_.fill_mask(mask);
-		//stupid point cloud!!
-		//erode(mask, mask, Mat());
-		//erode(mask, mask, Mat());
+		Point2i mid_point(0.,0.);
+		utils_.find_mid_point_mask(mask,mid_point);
 
 		utils_.cropped_pcl_from_mask(original_img,original_depth,mask,cloud_detection, tmp_img,tmp_depth);
 
@@ -668,7 +672,9 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 		double score_z = model_dimensions_3d.z > detection_dimensions_3d.z ? detection_dimensions_3d.z/model_dimensions_3d.z: model_dimensions_3d.z/detection_dimensions_3d.z;
 
 		//average the scores obtained for each dimension of the detection
-		if(low_sub_sampling)
+		if(high_sub_sampling)
+			min_score = 1 - (score_x*0.6+score_y*0.4);
+		else if(low_sub_sampling)
 			min_score = 1 - (score_x*0.6 + score_y*0.2+ score_z*0.2);// (score_x*0.5 +score_y*0.25+score_z*0.25)/3.;
 		else
 			min_score = 1 - (score_x+score_y+score_z)/3.;
@@ -694,7 +700,7 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 		cout<<" score based on dimensions="<<min_score<<endl;
 
 
-		if(min_score < threshold_score_gicp_){
+		if(ignore_registration_ || min_score < threshold_score_gicp_){
 			masks_verified.push_back(mask);
 
 			//transform the model to the frame of reference cloud
@@ -711,10 +717,11 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 			pcl::copyPointCloud(*model_cloud, *detection.model_cloud);
 			pcl::copyPointCloud(*save_original_cloud_detection, *detection.cloud);
 
-
+			detection.mid_point = mid_point;
 			detection.confidence = min_score;
 			detection.position = gravity_center;
 			detections_vector.push_back(detection);
+
 		}
 		else
 			cout <<" discarding candidate because of dimensions score"<<endl;
@@ -724,7 +731,10 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 
 	}
 	//sort the detections
-	sort(detections_vector.begin(),detections_vector.end(),Detection::sort_detections);
+	if(ignore_registration_)
+		sort(detections_vector.begin(),detections_vector.end(),Detection::sort_detections_right_most);
+	else
+		sort(detections_vector.begin(),detections_vector.end(),Detection::sort_detections);
 	for(Detection& detect : detections_vector){
 		cout <<" detection confidence = "<<detect.confidence<<endl;
 	}

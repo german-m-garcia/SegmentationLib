@@ -40,24 +40,22 @@
 #include <pcl/registration/transformation_validation_euclidean.h>
 #include <pcl/registration/icp.h>
 
-
-
 std::string Utils::stringify(double x) {
-  std::ostringstream o;
-  if ((o << x))
+	std::ostringstream o;
+	if ((o << x))
 
-    return o.str();
-  else
-    return NULL;
+		return o.str();
+	else
+		return NULL;
 }
 
 std::string Utils::stringify(int x) {
-  std::ostringstream o;
-  if ((o << x))
+	std::ostringstream o;
+	if ((o << x))
 
-    return o.str();
-  else
-    return NULL;
+		return o.str();
+	else
+		return NULL;
 }
 
 std::string Utils::remove_extension(const std::string& filename) {
@@ -78,7 +76,6 @@ string Utils::get_file_name(const string& s) {
 
 	return ("");
 }
-
 
 int Utils::parse_args(int argc, char **argv, double& thres, int& scales,
 		int& starting_scale, int& propagation_scale, int& gpu, string& img_path,
@@ -265,7 +262,8 @@ void Utils::merge_two_bounding_rects(Rect& rec1, Rect& rec2, Rect& res) {
  * @ mesh1 [output]
  *
  */
-void Utils::build_mesh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud, pcl::PolygonMesh::Ptr& mesh1){
+void Utils::build_mesh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
+		pcl::PolygonMesh::Ptr& mesh1) {
 
 	mesh1 = pcl::PolygonMesh::Ptr(new pcl::PolygonMesh);
 
@@ -276,15 +274,15 @@ void Utils::build_mesh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud, pcl::P
 
 }
 
-void Utils::display_mesh(pcl::PolygonMesh::Ptr& mesh){
+void Utils::display_mesh(pcl::PolygonMesh::Ptr& mesh) {
 	pcl::visualization::PCLVisualizer viewer("Mesh Viewer");
-	viewer.setBackgroundColor (0, 0, 0);
-	viewer.addPolygonMesh(*mesh,"meshes",0);
-	viewer.addCoordinateSystem (1.0);
-	viewer.initCameraParameters ();
-	while (!viewer.wasStopped ()){
-	    viewer.spinOnce (100);
-	    //boost::this_thread::sleep (boost::posix_time::microseconds (100000));
+	viewer.setBackgroundColor(0, 0, 0);
+	viewer.addPolygonMesh(*mesh, "meshes", 0);
+	viewer.addCoordinateSystem(1.0);
+	viewer.initCameraParameters();
+	while (!viewer.wasStopped()) {
+		viewer.spinOnce(100);
+		//boost::this_thread::sleep (boost::posix_time::microseconds (100000));
 	}
 }
 
@@ -329,11 +327,11 @@ void Utils::display_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
  *
  */
 void Utils::display_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
-		std::vector<int>& indices,
-		string& text) {
+		std::vector<int>& indices, string& text) {
 
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_copy(new pcl::PointCloud<pcl::PointXYZRGB>);
-	for(int index : indices)
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_copy(
+			new pcl::PointCloud<pcl::PointXYZRGB>);
+	for (int index : indices)
 		cloud_copy->points.push_back(cloud->points[index]);
 
 	pcl::visualization::PCLVisualizer viewer(text);
@@ -425,11 +423,9 @@ void Utils::cluster(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud) {
 	return;
 }
 
-void Utils::cropped_pcl_from_mask(Mat& img, Mat& depth,
-		Mat& mask,
+void Utils::cropped_pcl_from_mask(Mat& img, Mat& depth, Mat& mask,
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud, Mat& tmp_img,
 		Mat& tmp_depth) {
-
 
 	Mat cropped_img, cropped_depth;
 	Mat pointsMat;
@@ -487,8 +483,6 @@ void Utils::cropped_pcl_from_segments(Mat& img, Mat& depth,
 	cout << " target size=" << size_segments << endl;
 	cout << " current size=" << img.size() << endl;
 
-
-
 	Mat mask = Mat::zeros(size_segments, CV_8UC1);
 	//iterate over the segments and fill in the binary mask
 	for (Segment * seg : segments) {
@@ -497,9 +491,7 @@ void Utils::cropped_pcl_from_segments(Mat& img, Mat& depth,
 
 	}
 	resize(mask, mask, img.size());
-	cropped_pcl_from_mask(img,depth,mask,cloud, tmp_img,tmp_depth);
-
-
+	cropped_pcl_from_mask(img, depth, mask, cloud, tmp_img, tmp_depth);
 
 }
 
@@ -525,7 +517,6 @@ void Utils::compute_normals(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 //	ne.setInputCloud(cloud);
 //	ne.compute(*normals);
 }
-
 
 /*
  * !brief Computes the surface normals of an organized point cloud
@@ -590,7 +581,6 @@ void Utils::compute_vfh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 //	for (int i = 0; i < descriptor.descriptorSize(); i++) {
 //		vfh_features.at<float>(0, i) = descriptor.histogram[i];
 //	}
-
 
 }
 
@@ -803,7 +793,8 @@ void Utils::rotate_eigen_axes(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
  *
  *
  */
-void Utils::obtain_eigen_axes(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud, Eigen::Matrix4f& projectionTransform) {
+void Utils::obtain_eigen_axes(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
+		Eigen::Matrix4f& projectionTransform) {
 
 	Eigen::Matrix3f eigenVectorsPCA;
 	compute_pca_alt(src_cloud, eigenVectorsPCA);
@@ -911,7 +902,7 @@ void Utils::prune_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src,
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tpm_cloud(
 			new pcl::PointCloud<pcl::PointXYZRGB>);
 	for (pcl::PointXYZRGB& pt : *cloud_src) {
-		if (  (  pt.x != 0 || pt.y != 0 || pt.z != 0) ){
+		if ((pt.x != 0 || pt.y != 0 || pt.z != 0)) {
 			tpm_cloud->points.push_back(pt);
 			npoints++;
 		}
@@ -928,10 +919,12 @@ void Utils::prune_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src,
  * on the result of this function, because the point cloud
  * will not be structured anymore => cloud->height = 1
  */
-void Utils::nanify_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_dst) {
+void Utils::nanify_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src,
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_dst) {
 	int npoints = 0;
 
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp_cloud = pcl::PointCloud<pcl::PointXYZRGB>::Ptr(	new pcl::PointCloud<pcl::PointXYZRGB>);
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp_cloud = pcl::PointCloud<
+			pcl::PointXYZRGB>::Ptr(new pcl::PointCloud<pcl::PointXYZRGB>);
 	for (pcl::PointXYZRGB& pt : *cloud_src) {
 //		if (fabs(pt.x) > 0.00001 || fabs(pt.y) > 0.00001 || fabs(pt.z) > 0.00001) {
 //			//cout <<" non nanifyied point p="<<pt<<endl;
@@ -944,10 +937,10 @@ void Utils::nanify_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src,pcl::Po
 //			//if(!isnan(pt.x))
 //			//	cout <<"problem with nanyfying!"<<endl;
 //		}
-		if(pt.x == 0. && pt.y == 0. && pt.z == 0.){
+		if (pt.x == 0. && pt.y == 0. && pt.z == 0.) {
 			pt.x = NAN;
-			pt.y = -1.;//NAN;
-			pt.z = -1.;//NAN;
+			pt.y = -1.;	//NAN;
+			pt.z = -1.;	//NAN;
 			pt.r = 255;
 		}
 		tmp_cloud->points.push_back(pt);
@@ -959,22 +952,22 @@ void Utils::nanify_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src,pcl::Po
 
 }
 
-void Utils::remove_zeros(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src,std::vector<int>& indices) {
+void Utils::remove_zeros(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src,
+		std::vector<int>& indices) {
 
 	indices.clear();
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp_cloud = pcl::PointCloud<pcl::PointXYZRGB>::Ptr(	new pcl::PointCloud<pcl::PointXYZRGB>);
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp_cloud = pcl::PointCloud<
+			pcl::PointXYZRGB>::Ptr(new pcl::PointCloud<pcl::PointXYZRGB>);
 	int index = 0;
 	for (pcl::PointXYZRGB& pt : *cloud_src) {
 
-		if(isnan(pt.x) || (pt.x == 0. && pt.y == 0. && pt.z == 0.)){
+		if (isnan(pt.x) || (pt.x == 0. && pt.y == 0. && pt.z == 0.)) {
 
-		}
-		else
+		} else
 			indices.push_back(index);
 
 		index++;
 	}
-
 
 }
 
@@ -989,9 +982,9 @@ void Utils::subtract_gravity_center(
 }
 
 void Utils::subtract_gravity_center(
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src, std::vector<int>& indices,
-		Point3d& gravity_center) {
-	for(int index : indices){
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src,
+		std::vector<int>& indices, Point3d& gravity_center) {
+	for (int index : indices) {
 		pcl::PointXYZRGB& p = cloud_src->points[index];
 		p.x -= gravity_center.x;
 		p.y -= gravity_center.y;
@@ -1009,8 +1002,8 @@ void Utils::compute_pca(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pca_cloud,
 void Utils::remove_outliers(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud) {
 
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp_cloud(
+			new pcl::PointCloud<pcl::PointXYZRGB>);
 
 	//median filter: introduces new points where there were none
 
@@ -1020,8 +1013,6 @@ void Utils::remove_outliers(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
 //	fbf.setWindowSize (5);
 //	fbf.filter (*tmp_cloud);
 //	dst_cloud=tmp_cloud;
-
-
 
 	// Create the filtering object
 //	pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor;
@@ -1040,12 +1031,12 @@ void Utils::remove_outliers(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
 	dst_cloud = tmp_cloud;
 }
 
-void Utils::remove_SCREW_outliers(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
+void Utils::remove_SCREW_outliers(
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud) {
 
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-
-
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp_cloud(
+			new pcl::PointCloud<pcl::PointXYZRGB>);
 
 	pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> outrem;
 	// build the filter
@@ -1057,28 +1048,27 @@ void Utils::remove_SCREW_outliers(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cl
 	dst_cloud = tmp_cloud;
 }
 
-void Utils::remove_HOLDER_outliers(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
+void Utils::remove_HOLDER_outliers(
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
 		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud) {
 
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-
-
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp_cloud(
+			new pcl::PointCloud<pcl::PointXYZRGB>);
 
 	pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> outrem;
 	// build the filter
 	outrem.setInputCloud(src_cloud);
 	outrem.setRadiusSearch(0.05);
-	outrem.setMinNeighborsInRadius(25);
+	outrem.setMinNeighborsInRadius(18);
+	//outrem.setMinNeighborsInRadius(25);
 	// apply filter
 	outrem.filter(*tmp_cloud);
 	dst_cloud = tmp_cloud;
 }
-
-
 
 double Utils::icp(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_1,
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_2,Eigen::Matrix4f& transform) {
-
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_2,
+		Eigen::Matrix4f& transform) {
 
 	pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
 	icp.setInputSource(cloud_1);
@@ -1087,11 +1077,10 @@ double Utils::icp(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_1,
 			new pcl::PointCloud<pcl::PointXYZRGB>);
 	icp.align(*Final);
 	double score = icp.getFitnessScore();
-	std::cout << "has converged:" << icp.hasConverged() << " score: "
-			<< score << std::endl;
-	transform =  icp.getFinalTransformation();
+	std::cout << "has converged:" << icp.hasConverged() << " score: " << score
+			<< std::endl;
+	transform = icp.getFinalTransformation();
 	//std::cout << icp.getFinalTransformation() << std::endl;
-
 
 	//validate the transformation
 //	pcl::registration::TransformationValidationEuclidean<pcl::PointXYZRGB, pcl::PointXYZRGB> tve;
@@ -1101,20 +1090,22 @@ double Utils::icp(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_1,
 //	score = tve.validateTransformation (cloud_2, cloud_1, transform.inverse());
 //	cout << "TransformationValidationEuclidean score ="<<score <<endl;
 
-
 	return score;
 
 }
 
-double Utils::validate_transform(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_1,
-		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_2,Eigen::Matrix4f& transform){
+double Utils::validate_transform(
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_1,
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_2,
+		Eigen::Matrix4f& transform) {
 	//validate the transformation
-	pcl::registration::TransformationValidationEuclidean<pcl::PointXYZRGB, pcl::PointXYZRGB> tve;
-	tve.setMaxRange (0.5);  // 50cm
-	double score = tve.validateTransformation (cloud_1, cloud_2, transform);
-	cout << "TransformationValidationEuclidean score ="<<score <<endl;
-	score = tve.validateTransformation (cloud_2, cloud_1, transform.inverse());
-	cout << "TransformationValidationEuclidean score ="<<score <<endl;
+	pcl::registration::TransformationValidationEuclidean<pcl::PointXYZRGB,
+			pcl::PointXYZRGB> tve;
+	tve.setMaxRange(0.5);  // 50cm
+	double score = tve.validateTransformation(cloud_1, cloud_2, transform);
+	cout << "TransformationValidationEuclidean score =" << score << endl;
+	score = tve.validateTransformation(cloud_2, cloud_1, transform.inverse());
+	cout << "TransformationValidationEuclidean score =" << score << endl;
 	return score;
 }
 
@@ -1270,7 +1261,7 @@ void Utils::xyz_gravity_center(
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr pca_cloud(
 			new pcl::PointCloud<pcl::PointXYZRGB>);
 	for (PointXYZRGB& p : *pcl_cloud) {
-		if (fabs(p.x) > 0.00001 || fabs(p.y) > 0.00001 ) {
+		if (fabs(p.x) > 0.00001 || fabs(p.y) > 0.00001) {
 			n++;
 			x += p.x;
 			y += p.y;
@@ -1286,7 +1277,6 @@ void Utils::xyz_gravity_center(
 	y /= n;
 	z /= n;
 
-
 }
 
 /*
@@ -1298,7 +1288,6 @@ void Utils::shift_to_min(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud) {
 	double x = 999999.;
 	double y = 999999.;
 	double z = 999999.;
-
 
 	for (PointXYZRGB& p : *pcl_cloud) {
 //		if (p.x < x && p.y < y && p.z < z ) {
@@ -1331,7 +1320,8 @@ void Utils::shift_to_min(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud) {
  * !brief Shifts the point cloud
  *
  */
-void Utils::shift_to_min(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud, std::vector<int>& indices) {
+void Utils::shift_to_min(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud,
+		std::vector<int>& indices) {
 
 	double x = 9999.;
 	double y = 9999.;
@@ -1351,12 +1341,12 @@ void Utils::shift_to_min(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud, std:
 	}
 	cout << " min at " << x << " " << y << " " << z << endl;
 
-	if( x > 0.)
+	if (x > 0.)
 		x = -x;
-	if( y > 0.)
-			y = -y;
-	if( z > 0.)
-			z = -z;
+	if (y > 0.)
+		y = -y;
+	if (z > 0.)
+		z = -z;
 	for (int index : indices) {
 		PointXYZRGB& p = pcl_cloud->points[index];
 		p.x -= x;
@@ -1379,7 +1369,7 @@ void Utils::mask_to_pcl_indices(Mat& mask, vector<int>& indices) {
 	}
 }
 
-void Utils::compute_contours(cv::Mat& mask,vector<vector<Point> >& contours){
+void Utils::compute_contours(cv::Mat& mask, vector<vector<Point> >& contours) {
 
 	//vector<Vec4i> hierarchy;
 
@@ -1388,13 +1378,56 @@ void Utils::compute_contours(cv::Mat& mask,vector<vector<Point> >& contours){
 	//		CV_CHAIN_APPROX_NONE, Point(0, 0));
 }
 
-void Utils::addPoints(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud){
-	for(PointXYZRGB& p: *src_cloud){
+void Utils::addPoints(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud) {
+	for (PointXYZRGB& p : *src_cloud) {
 		dst_cloud->push_back(p);
 	}
 }
 
-void Utils::fill_mask(cv::Mat& mask){
+void Utils::find_mid_point_mask(cv::Mat& mask, Point2i& mid_point) {
+//	 cv::Moments m = moments(mask, true);
+//	 cv::Point center(m.m10/m.m00, m.m01/m.m00);
+//	 mid_point = center;
+
+	/*
+	 * ----------> (X,j) cols
+	 *
+	 *
+	 * | (Y,i) rows
+	 *
+	 *
+	 */
+
+	int min_x = 999999;
+	int min_y = 999999;
+	int max_x = 0;
+	int max_y = 0;
+
+	for (int i = 0; i < mask.rows; i++) {
+		for (int j = 0; j < mask.cols; j++) {
+			if (mask.at<uint8_t>(i, j) > 0) {
+
+				if (i < min_y) {
+					min_y = i;
+				}
+				if (j < min_x) {
+					min_x = j;
+				}
+
+				if (i > max_y)
+					max_y = i;
+				if (j > max_x)
+					max_x = j;
+
+			}
+		}
+	}
+	mid_point.x = (max_x + min_x)/2.;
+	mid_point.y = (max_y + min_y)/2.;
+}
+
+void Utils::fill_mask(cv::Mat& mask) {
 	vector<vector<cv::Point> > contours;
 	vector<cv::Vec4i> hierarchy;
 
@@ -1408,8 +1441,10 @@ void Utils::fill_mask(cv::Mat& mask){
 	cv::drawContours(mask, contours, -1, color, thickness);
 }
 
-void Utils::sub_sample(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud){
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+void Utils::sub_sample(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud) {
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp_cloud(
+			new pcl::PointCloud<pcl::PointXYZRGB>);
 	pcl::UniformSampling<pcl::PointXYZRGB> uni_sampling;
 	uni_sampling.setInputCloud(src_cloud);
 	//uni_sampling.setRadiusSearch(0.02f);
@@ -1419,14 +1454,12 @@ void Utils::sub_sample(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,pcl::Po
 	//uni_sampling.detectKeypoints(*tmp_cloud);
 	dst_cloud = tmp_cloud;
 
-
-
 }
 
-
-
-void Utils::sub_sample_screw(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud){
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+void Utils::sub_sample_screw(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud) {
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp_cloud(
+			new pcl::PointCloud<pcl::PointXYZRGB>);
 	pcl::UniformSampling<pcl::PointXYZRGB> uni_sampling;
 	uni_sampling.setInputCloud(src_cloud);
 	//uni_sampling.setRadiusSearch(0.02f);
@@ -1435,8 +1468,6 @@ void Utils::sub_sample_screw(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,p
 	uni_sampling.filter(*tmp_cloud);
 	//uni_sampling.detectKeypoints(*tmp_cloud);
 	dst_cloud = tmp_cloud;
-
-
 
 }
 
@@ -1558,7 +1589,8 @@ void Utils::image_to_pcl(Mat& img, Mat& depth,
 
 }
 
-void Utils::copy_clouds(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud_1,pcl::PointCloud<pcl::PointXYZRGBA>::Ptr& pcl_cloud_2){
+void Utils::copy_clouds(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud_1,
+		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr& pcl_cloud_2) {
 	//pcl_cloud_2->points.resize(pcl_cloud_1->size());
 	//int i = 0;
 	for (pcl::PointXYZRGB& p : *pcl_cloud_1) {
@@ -1577,5 +1609,5 @@ void Utils::copy_clouds(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud_1,pcl:
 	}
 	pcl_cloud_2->width = pcl_cloud_1->width;
 	pcl_cloud_2->height = pcl_cloud_1->height;
-	cout <<"pcl_cloud_2 #points="<<pcl_cloud_2->points.size();
+	cout << "pcl_cloud_2 #points=" << pcl_cloud_2->points.size();
 }

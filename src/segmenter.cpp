@@ -12,7 +12,7 @@
 using namespace std;
 using namespace cv;
 
-int scharrmain(int argc, char** argv) {
+int main(int argc, char** argv) {
 
 	string text("Scharr segmentation: ");
 	Mat original_img,contours_mat, gradient,grayGradient;
@@ -66,7 +66,7 @@ int scharrmain(int argc, char** argv) {
 
 }
 
-int main(int argc, char** argv) {
+int _main(int argc, char** argv) {
 
 	string text("Mean Shift segmentation: ");
 	Mat original_img,contours_mat, gradient,grayGradient;

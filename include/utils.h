@@ -134,6 +134,8 @@ public:
 
 	void addPoints(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud);
 
+	void find_mid_point_mask(cv::Mat& mask,Point2i& mid_point);
+
 	void fill_mask(cv::Mat& mask);
 
 	void sub_sample_screw(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& dst_cloud);

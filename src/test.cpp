@@ -54,7 +54,7 @@ const double SCREW_HEIGHT = 0.1;
  *
  */
 void face_at_height(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double z){
-	const double length = 0.15;
+	const double length = 0.151;
 
 	/*
 	 * | (Y)
@@ -177,8 +177,8 @@ void hexagon_at_height(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, double z){
 
 }
 
-
-int main(int argc, char ** argv) {
+//create holder
+int main_holder(int argc, char ** argv) {
 	Utils utils;
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_holder(
 				new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -201,8 +201,8 @@ int main(int argc, char ** argv) {
 	return 0;
 }
 
-//create SCREW
-int main_SCREW(int argc, char ** argv) {
+//create SCREW or NUT
+int main(int argc, char ** argv) {
 	Utils utils;
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_screw(
 				new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -213,8 +213,19 @@ int main_SCREW(int argc, char ** argv) {
 	//for(double z = NUT_HEIGHT; z < SCREW_HEIGHT+NUT_HEIGHT; z += INTERVAL)
 	//	circle_at_height(cloud_screw,radius,z);
 
-	for(double z = 0.; z < NUT_HEIGHT; z+= INTERVAL)
+	for(double z = 0.; z < NUT_HEIGHT; z+= INTERVAL){
 		hexagon_at_height(cloud_screw,z);
+		circle_at_height(cloud_screw,radius,z);
+	}
+
+	//intermediate circles
+
+	for(radius = 0.01; radius < 0.017; radius+=0.0005){
+		double z  = 0.;
+		circle_at_height(cloud_screw,radius,z);
+		z  = NUT_HEIGHT;
+		circle_at_height(cloud_screw,radius,z);
+	}
 
 
 
