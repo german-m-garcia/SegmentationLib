@@ -172,6 +172,9 @@ public:
 	void image_to_pcl(cv::Mat& img, cv::Mat& depth,
 			pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud);
 
+	void image_to_pcl(Mat& img, Mat& depth,
+			pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud,float constant);
+
 	void prune_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_dst);
 
 	void nanify_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_src,pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud_dst);

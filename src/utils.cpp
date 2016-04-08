@@ -1511,6 +1511,46 @@ void Utils::image_to_pcl(Mat& img, Mat& depth,
 
 }
 
+void Utils::image_to_pcl(Mat& img, Mat& depth,
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud,float constant) {
+
+	// explicitly specify dsize=dst.size(); fx and fy will be computed from that.
+	if (img.size() != depth.size())
+		resize(depth, depth, img.size(), 0, 0, cv::INTER_CUBIC);
+
+	pcl_cloud.reset(new pcl::PointCloud<pcl::PointXYZRGB>);
+	pcl_cloud->width = img.cols;
+	pcl_cloud->height = img.rows;
+	pcl_cloud->points.resize(pcl_cloud->height * pcl_cloud->width);
+
+	//int* depth_data = new int[pcl_cloud->height * pcl_cloud->width];
+	//copy the depth values of every pixel in here
+
+	// register float constant = 1.0f / 525;
+
+	//  register int centerX = (pcl_cloud->width >> 1);
+	//  int centerY = (pcl_cloud->height >> 1);
+
+	int cx = img.cols / 2;
+	int cy = img.rows / 2;
+	register int depth_idx = 0;
+	for (int u = 0; u < img.rows; ++u)
+		for (int v = 0; v < img.cols; ++v, ++depth_idx) {
+			pcl::PointXYZRGB& pt = pcl_cloud->points[depth_idx];
+			float depthvalue = depth.at<float>(u, v);
+			//cout <<"depth value="<<depthvalue<<endl;
+			pt.z = depthvalue;	//* 1000.0f;//depth_data[depth_idx] * 0.001f;
+			pt.x = static_cast<float>(v - cx) * pt.z * constant;
+			pt.y = static_cast<float>(u - cy) * pt.z * constant;
+			Vec3b& colour = img.at<Vec3b>(u, v);
+			pt.b = colour[0];
+			pt.g = colour[1];
+			pt.r = colour[2];
+		}
+	//cout <<"image_to_pcl::pcl_cloud->points.size()="<<pcl_cloud->points.size()<<endl;
+
+}
+
 void Utils::scale_pcl(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& pcl_cloud,
 		float factor) {
 

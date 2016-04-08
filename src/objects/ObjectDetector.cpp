@@ -591,6 +591,14 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 		//1-fill the holes in this mask
 		utils_.fill_mask(mask);
 		Point2i mid_point(0.,0.);
+//		if(ignore_registration_){
+//			Mat mask_eroded;
+//			cv::erode(mask,mask_eroded,1);
+//			cv::erode(mask_eroded,mask_eroded,1);
+//			cv::erode(mask_eroded,mask_eroded,1);
+//			utils_.find_mid_point_mask(mask_eroded,mid_point);
+//		}
+//		else
 		utils_.find_mid_point_mask(mask,mid_point);
 
 		utils_.cropped_pcl_from_mask(original_img,original_depth,mask,cloud_detection, tmp_img,tmp_depth);
