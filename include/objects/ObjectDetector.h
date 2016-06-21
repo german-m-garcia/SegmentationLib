@@ -23,7 +23,7 @@
 #define THRESHOLD_SCORE_GICP 0.4//0.05
 #define TIGHTER_THRESHOLD_SCORE_GICP 0.5 //0.32
 
-#define THRESHOLD_POSITIVE_CLASS 0.2//0.1
+#define THRESHOLD_POSITIVE_CLASS 0.1//0.1
 
 //using namespace mrsmap;
 
@@ -68,6 +68,11 @@ public:
 		{
 			return d1.mid_point.x > d2.mid_point.x;
 		}
+
+	static bool sort_detections_left_most( const Detection& d1, const Detection& d2 )
+	{
+		return d1.mid_point.x < d2.mid_point.x;
+	}
 };
 
 

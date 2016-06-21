@@ -347,7 +347,7 @@ void Segment::set_original_mat_segment_mat(){
 void Segment::computeHistogram() {
 	assert(mat_original_colour_.data);
 
-	set_original_mat_segment_mat();
+	//set_original_mat_segment_mat();
 	//convert to HSV
 	cv::Mat hsv_mat;
 	cv::cvtColor(mat_original_colour_, hsv_mat, CV_BGR2HSV);

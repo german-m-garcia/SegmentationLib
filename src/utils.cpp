@@ -1385,10 +1385,271 @@ void Utils::addPoints(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& src_cloud,
 	}
 }
 
+void Utils::harris(cv::Mat& src_gray){
+	/** @function cornerHarris_demo */
+	int thresh = 200;
+	int max_thresh = 255;
+
+	Mat dst, dst_norm, dst_norm_scaled;
+	dst = Mat::zeros( src_gray.size(), CV_32FC1 );
+
+	/// Detector parameters
+	int blockSize = 3;
+	int apertureSize = 3;
+	double k = 0.04;
+
+	/// Detecting corners
+	cv::cornerHarris( src_gray, dst, blockSize, apertureSize, k, cv::BORDER_DEFAULT );
+
+	/// Normalizing
+	cv::normalize( dst, dst_norm, 0, 255, cv::NORM_MINMAX, CV_32FC1, Mat() );
+	cv::convertScaleAbs( dst_norm, dst_norm_scaled );
+
+	/// Drawing a circle around corners
+	for( int j = 0; j < dst_norm.rows ; j++ )
+	 { for( int i = 0; i < dst_norm.cols; i++ )
+		  {
+			if( (int) dst_norm.at<float>(j,i) > thresh )
+			  {
+			   circle( dst_norm_scaled, Point( i, j ), 5,  Scalar(0), 2, 8, 0 );
+			  }
+		  }
+	 }
+	/// Showing the result
+
+	cv::imshow( "harris", dst_norm_scaled );
+	cv::waitKey(0);
+
+}
+
+bool isEqual(const cv::Vec4i& _l1, const cv::Vec4i& _l2)
+{
+    cv::Vec4i l1(_l1), l2(_l2);
+
+    float length1 = sqrtf((l1[2] - l1[0])*(l1[2] - l1[0]) + (l1[3] - l1[1])*(l1[3] - l1[1]));
+    float length2 = sqrtf((l2[2] - l2[0])*(l2[2] - l2[0]) + (l2[3] - l2[1])*(l2[3] - l2[1]));
+
+    float product = (l1[2] - l1[0])*(l2[2] - l2[0]) + (l1[3] - l1[1])*(l2[3] - l2[1]);
+
+    if (fabs(product / (length1 * length2)) < cos(CV_PI / 15))
+        return false;
+
+    //if they overlap return true
+    //end point of line1
+    cv::Point endLine1(l1[2], l1[3]);
+    //starting point of line1
+    cv::Point startLine2(l2[0], l2[1]);
+    //if their distance is small
+    if( cv::norm(endLine1 - startLine2) < 10)
+    	return true;
+    return false;
+}
+
+void mergeLines(std::vector<cv::Vec4i>& lines,std::vector<int>& labels, std::vector<cv::Vec4i>& outLines, std::vector<int>& horiClasses){
+
+
+	std::vector<cv::Vec4i> horizontals;
+
+	for( size_t i = 0; i < lines.size(); i++ ){
+		cv::Vec4i line = lines[i];
+		cv::Point p0(line[0], line[1]);
+		cv::Point pf(line[2], line[3]);
+		double hypo = cv::norm(pf - p0);
+		double side = pf.y - p0.y;
+		if (side <0)
+			side *= -1.f;
+		double angle = asin(side/hypo);
+
+		if(angle < 0.1 ){
+			std::cout <<"angle is="<<angle<<std::endl;
+			horizontals.push_back(line);
+			horiClasses.push_back(labels[i]);
+		}
+
+	}
+}
+
+void lines2(cv::Mat& mask){
+
+	RNG rng(12345);
+	cv::Vec4f lines;
+	cv::Mat dst,cdst;
+	vector<vector<cv::Point>> contours;
+	cv::Canny(mask, dst, 50, 200, 3);
+	cv::cvtColor(dst, cdst, CV_GRAY2BGR);
+	cv::imshow("the edges", dst);
+	cv::waitKey(0);
+
+	cv::findContours(dst,contours,cv::RETR_LIST,cv::CHAIN_APPROX_NONE);
+	/// Find the convex hull object for each contour
+	vector<vector<cv::Point> >hull( contours.size() );
+	for( int i = 0; i < contours.size(); i++ )
+	  {  cv::convexHull( cv::Mat(contours[i]), hull[i], true ); }
+
+
+	int id = 0;
+	for(cv::Point& p : hull[id]){
+		cv::circle(mask,p,10,cv::Scalar(155));
+
+	}
+
+//	/// Draw contours + hull results
+//	cv::Mat drawing = cv::Mat::zeros( mask.size(), CV_8UC3 );
+//	for( int i = 0; i< 1/*contours.size()*/; i++ )
+//	  {
+//		cv::Scalar color = cv::Scalar( rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255) );
+//		cv::drawContours( drawing, contours, i, color, 1, 8, vector<cv::Vec4i>(), 0, cv::Point() );
+//		cv::drawContours( drawing, hull, i, color, 1, 8, vector<cv::Vec4i>(), 0, cv::Point() );
+//	  }
+
+	/// Show in a window
+	cv::namedWindow( "Hull demo", CV_WINDOW_AUTOSIZE );
+	cv::imshow( "Hull demo", mask );
+	cv::waitKey(0);
+}
+
+void min_row_point(cv::Mat& mask, cv::Point& minRowPoint){
+	int min_x = 999999;
+	int min_y = 999999;
+	int max_x = 0;
+	int max_y = 0;
+
+	for (int i = 0; i < mask.rows; i++) {
+			for (int j = 0; j < mask.cols; j++) {
+				if (mask.at<uint8_t>(i, j) > 0) {
+
+					//min row
+					if (i < min_y) {
+						min_y = i;
+						minRowPoint.x = j;
+						minRowPoint.y = i;
+					}
+					//min col
+					if (j < min_x) {
+						min_x = j;
+
+					}
+
+					if (i > max_y)
+						max_y = i;
+					//max col
+					if (j > max_x){
+						max_x = j;
+
+					}
+
+				}
+			}
+		}
+	//cv::circle(mask,minRowPoint,10,cv::Scalar(155));
+	//cv::imshow("min row point", mask);
+	//cv::waitKey(0);
+}
+
+void rotation(cv::Mat& mask, bool positiveRotation, cv::Mat& transform, cv::Mat& warp_rotate_dst){
+	 cv::Point2f srcTri[3];
+	 cv::Point2f dstTri[3];
+
+
+	 cv::Mat rot_mat( 2, 3, CV_32FC1 );
+	 cv::Mat warp_mat( 2, 3, CV_32FC1 );
+	 cv::Mat src, warp_dst;
+
+	/// Load the image
+	src = mask.clone();
+
+	/// Set the dst image the same type and size as src
+	warp_dst = Mat::zeros( src.rows, src.cols, src.type() );
+
+	/// Set your 3 points to calculate the  Affine Transform
+	srcTri[0] = cv::Point2f( 0,0 );
+	srcTri[1] = cv::Point2f( src.cols - 1, 0 );
+	srcTri[2] = cv::Point2f( 0, src.rows - 1 );
+
+	dstTri[0] = cv::Point2f( src.cols*0.0, src.rows*0.33 );
+	dstTri[1] = cv::Point2f( src.cols*0.85, src.rows*0.25 );
+	dstTri[2] = cv::Point2f( src.cols*0.15, src.rows*0.7 );
+
+	/// Get the Affine Transform
+	warp_mat = cv::getAffineTransform( srcTri, dstTri );
+
+
+	/// Apply the Affine Transform just found to the src image
+	cv::warpAffine( src, warp_dst, warp_mat, warp_dst.size() );
+	warp_dst = src;
+	/** Rotating the image after Warp */
+
+	/// Compute a rotation matrix with respect to the center of the image
+	cv::Point center = cv::Point( warp_dst.cols/2, warp_dst.rows/2 );
+	double angle = positiveRotation ? 50.0 :  -50.0;
+	double scale = 1.0;
+
+	/// Get the rotation matrix with the specifications above
+	rot_mat = cv::getRotationMatrix2D( center, angle, scale );
+	transform = rot_mat;
+
+	/// Rotate the warped image
+	cv::warpAffine( warp_dst, warp_rotate_dst, rot_mat, warp_dst.size() );
+
+
+}
+
+void Utils::find_lines(cv::Mat& mask){
+	cv::Mat dst,cdst;
+	cv::Canny(mask, dst, 50, 200, 3);
+	 cv::cvtColor(dst, cdst, CV_GRAY2BGR);
+
+
+
+	std::vector<cv::Vec4i> lines,horizontals;
+	cv::HoughLinesP(dst, lines, 1, CV_PI/90, 20, 20, 10 );
+
+	std::vector<int> labels,horiClasses;
+	int numberOfLines = cv::partition(lines, labels, isEqual);
+
+	//mergeLines(lines,labels,horizontals, horiClasses);
+
+//	for( size_t i = 0; i < lines.size(); i++ )
+//	{
+//		std::cout <<"class="<<labels[i]<<std::endl;
+//		cv::Vec4i l = lines[i];
+//		line( cdst, cv::Point(l[0], l[1]), cv::Point(l[2], l[3]),cv::Scalar(0,0,255), 3, CV_AA);
+//		cv::imshow("detected lines", cdst);
+//		cv::waitKey(0);
+//	}
+	for( size_t i = 0; i < horizontals.size(); i++ )
+		{
+			std::cout <<"class="<<horiClasses[i]<<std::endl;
+			cv::Vec4i l = horizontals[i];
+			line( cdst, cv::Point(l[0], l[1]), cv::Point(l[2], l[3]),cv::Scalar(0,0,255), 3, CV_AA);
+			cv::imshow("detected lines", cdst);
+			cv::waitKey(0);
+		}
+
+	 cv::imshow("source", mask);
+	 cv::imshow("detected lines", cdst);
+
+
+
+}
+
 void Utils::find_mid_point_mask(cv::Mat& mask, Point2i& mid_point) {
-//	 cv::Moments m = moments(mask, true);
-//	 cv::Point center(m.m10/m.m00, m.m01/m.m00);
-//	 mid_point = center;
+	bool positiveRot = true, negativeRot = false;
+	cv::Mat rotatedMat, positiveRotMat, negativeRotMat;
+	cv::Point2i minRowP1, minRowP2;
+	cv::Mat maskclone1 = mask.clone(), maskclone2 = mask.clone();
+	//rotate the mask
+	rotation(maskclone1, positiveRot, positiveRotMat, rotatedMat);
+	min_row_point(rotatedMat, minRowP1);
+
+	//rotate the mask
+	rotation(maskclone2, negativeRot, negativeRotMat, rotatedMat);
+	min_row_point(rotatedMat, minRowP2);
+
+
+
+	//find_lines(maskclone);
+	//harris(maskclone);
 
 	/*
 	 * ----------> (X,j) cols
@@ -1399,32 +1660,74 @@ void Utils::find_mid_point_mask(cv::Mat& mask, Point2i& mid_point) {
 	 *
 	 */
 
+
 	int min_x = 999999;
 	int min_y = 999999;
 	int max_x = 0;
 	int max_y = 0;
 
+	cv::Point2i minColPoint,maxColPoint;
+	cv::Point2i minRowPoint,maxRowPoint;
+
+
+	//undo the rotation for point
+	minRowPoint.x = negativeRotMat.at<double>(0,0)*minRowP1.x +negativeRotMat.at<double>(0,1)*minRowP1.y + negativeRotMat.at<double>(0,2);
+	minRowPoint.y = negativeRotMat.at<double>(1,0)*minRowP1.x + negativeRotMat.at<double>(1,1)*minRowP1.y + negativeRotMat.at<double>(1,2);
+
+	minColPoint.x = positiveRotMat.at<double>(0,0)*minRowP2.x +positiveRotMat.at<double>(0,1)*minRowP2.y + positiveRotMat.at<double>(0,2);
+	minColPoint.y = positiveRotMat.at<double>(1,0)*minRowP2.x + positiveRotMat.at<double>(1,1)*minRowP2.y + positiveRotMat.at<double>(1,2);
+
+
+/*
 	for (int i = 0; i < mask.rows; i++) {
 		for (int j = 0; j < mask.cols; j++) {
 			if (mask.at<uint8_t>(i, j) > 0) {
 
-				if (i < min_y) {
+				//min row
+				if (i <= min_y) {
 					min_y = i;
+					minRowPoint.x = j;
+					minRowPoint.y = i;
 				}
+				//min col
 				if (j < min_x) {
 					min_x = j;
+					minColPoint.x = j;
+					minColPoint.y = i;
 				}
 
 				if (i > max_y)
 					max_y = i;
-				if (j > max_x)
+				//max col
+				if (j > max_x){
 					max_x = j;
+					maxColPoint.x = j;
+					maxColPoint.y = i;
+				}
 
 			}
 		}
-	}
-	mid_point.x = (max_x + min_x)/2.;
-	mid_point.y = (max_y + min_y)/2.;
+	}*/
+	cv::circle(mask,minRowPoint,20,cv::Scalar(155));
+	cv::circle(mask,minColPoint,20,cv::Scalar(155));
+	cv::imshow("find_mid_point_mask", mask);
+
+	//if the rectangle is not parallel to the camera axes this is wrong
+	//mid_point.x = (max_x + min_x)/2.;
+	//mid_point.y = (max_y + min_y)/2.;
+	mid_point.x = (minRowPoint.x + minColPoint.x)/2.;
+	mid_point.y = (minRowPoint.y + minColPoint.y)/2.;
+
+	double side = cv::norm(minRowPoint-minColPoint);
+	std::cout <<"minColPoint="<<minColPoint<<" minRowPoint="<<minRowPoint<<std::endl;
+	double angle = asin( (minColPoint.y -minRowPoint.y  )/side  );
+	double y_offset = side/2. * cos(angle);
+	double x_offset = side/2. * sin(angle);
+	std::cout <<"angle="<<angle<<std::endl;
+	std::cout <<"side="<<side<<" x_offset="<< x_offset<<" y_offset="<< y_offset<< std::endl;
+	mid_point.x += x_offset;
+	mid_point.y += y_offset;
+	std::cout <<"mid_point="<<mid_point<<std::endl;
 }
 
 void Utils::fill_mask(cv::Mat& mask) {
