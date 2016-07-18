@@ -117,14 +117,24 @@ add_library(SEGMENTATION SHARED
    ${PROJECT_SOURCE_DIR}/surface_cluster.cpp
    ${PROJECT_SOURCE_DIR}/epbase.cpp
    ${PROJECT_SOURCE_DIR}/cluster_normals_to_planes.cpp    
-   ${PROJECT_SOURCE_DIR}/utils.cpp  
+   ${PROJECT_SOURCE_DIR}/utils.cpp
+   #${PROJECT_SOURCE_DIR}/clahe.cpp  
    #hack to work with PCL 1.7
    ${PROJECT_SOURCE_DIR}/pcl_hack/uniform_sampling.cpp
+   
+   ${PROJECT_SOURCE_DIR}/contours/Contours.cpp
+   
+   #${PROJECT_SOURCE_DIR}/features/test_features.cpp
      
    
    #remove if using the latest PCL 
    #${PROJECT_SOURCE_DIR}/lccp_segmentation.cpp
  )
+
+
+#Create an Executable for testing contours
+add_executable(contours ${PROJECT_SOURCE_DIR}/apps/test_contours.cpp)
+target_link_libraries( contours SEGMENTATION  ${Boost_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS}) #mrsmapLib mrsslamLib)
 
 
 
@@ -136,8 +146,30 @@ target_link_libraries( segment SEGMENTATION  ${Boost_LIBRARIES} ${PCL_LIBRARIES}
 add_executable(test ${PROJECT_SOURCE_DIR}/test.cpp)
 target_link_libraries( test SEGMENTATION  ${Boost_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
+#Create an Executable for test_mesh main file
+add_executable(mesh ${PROJECT_SOURCE_DIR}/mesh/test_mesh.cpp)
+target_link_libraries( mesh SEGMENTATION  ${Boost_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
+
+add_executable(render ${PROJECT_SOURCE_DIR}/mesh/render_mesh.cpp)
+target_link_libraries( render SEGMENTATION  ${Boost_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
+
+#add_executable(tessel ${PROJECT_SOURCE_DIR}/mesh/tessel.cpp)
+#target_link_libraries( tessel SEGMENTATION  ${Boost_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
+
 
 add_executable(ms_segment ${PROJECT_SOURCE_DIR}/ms_segmenter.cpp)
 target_link_libraries( ms_segment  SEGMENTATION ${Boost_LIBRARIES}  ${OpenCV_LIBS}  ${PCL_LIBRARIES} )
 
+add_executable(clahe ${PROJECT_SOURCE_DIR}/clahe.cpp)
+target_link_libraries( clahe  SEGMENTATION ${Boost_LIBRARIES}  ${OpenCV_LIBS}  ${PCL_LIBRARIES} )
 
+
+add_executable(features ${PROJECT_SOURCE_DIR}/features/test_features.cpp)
+target_link_libraries( features  SEGMENTATION ${Boost_LIBRARIES}  ${OpenCV_LIBS}  ${PCL_LIBRARIES} )
+
+#add_executable(interest ${PROJECT_SOURCE_DIR}/features/interest_points.cpp)
+#target_link_libraries( interest  SEGMENTATION ${Boost_LIBRARIES}  ${OpenCV_LIBS}  ${PCL_LIBRARIES} )
+
+
+#add_executable(tomasi ${PROJECT_SOURCE_DIR}/features/tomasi.cpp)
+#target_link_libraries( tomasi  SEGMENTATION ${Boost_LIBRARIES}  ${OpenCV_LIBS}  ${PCL_LIBRARIES} )
