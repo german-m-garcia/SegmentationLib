@@ -14,7 +14,7 @@
 //initialise the Random Number Generator
 cv::RNG Contours::rng = cv::RNG();
 
-Contours::Contours() {
+Contours::Contours(): minimum_size_(35) {
 	// TODO Auto-generated constructor stub
 
 }
@@ -33,18 +33,18 @@ void Contours::compute_edges(cv::Mat& src, cv::Mat& dst){
 	int const max_lowThreshold = 100;
 	int ratio = 3;
 	int kernel_size = 3;
-
+	cv::Mat src_blurred;
 
 	/// Canny detector
 	 /// Reduce noise with a kernel 3x3
-	cv::blur( src, src, cv::Size(3,3) );
-	cv::Canny(src, dst, lowThreshold, max_lowThreshold, kernel_size);
-	cv::imshow("canny", dst);
-	cv::waitKey(0);
+	cv::blur( src, src_blurred, cv::Size(3,3) );
+	cv::Canny(src_blurred, dst, lowThreshold, max_lowThreshold, kernel_size);
+	//cv::imshow("canny", dst);
+	//cv::waitKey(0);
 
 }
 
-std::vector<cv::Point2i> Contours::get_active_non_visited_neighbours(cv::Mat&src, cv::Mat& visited, cv::Point&p){
+std::vector<cv::Point2i> Contours::get_active_non_visited_neighbours(const cv::Mat&src, cv::Mat& visited, cv::Point&p){
 	std::vector<cv::Point2i> return_points;
 	std::vector<cv::Point2i> neighs = get_neighbour_points(src,p);
 	//if it is a junction skip the rest
@@ -62,7 +62,7 @@ std::vector<cv::Point2i> Contours::get_active_non_visited_neighbours(cv::Mat&src
 /*
  * returns a vector with the neighbouring pixels for a given pixel p
  */
-std::vector<cv::Point2i> Contours::get_neighbour_points(cv::Mat& src, cv::Point&p){
+std::vector<cv::Point2i> Contours::get_neighbour_points(const cv::Mat& src, cv::Point&p){
 
 	/*
 	 *  ------------> (x) cols
@@ -98,7 +98,7 @@ std::vector<cv::Point2i> Contours::get_neighbour_points(cv::Mat& src, cv::Point&
 /*
  * computes the number of active neighbours for a given pixel p
  */
-int Contours::neighbours(cv::Mat& src, cv::Point& p){
+int Contours::neighbours(const cv::Mat& src, cv::Point& p){
 	std::vector<cv::Point2i>  neighbour_points = get_neighbour_points(src, p);
 
 	int active_neighbours = 0;
@@ -139,18 +139,62 @@ cv::Mat Contours::visu_orientation_map(const cv::Mat& mag, const cv::Mat& ori, d
     return oriMap;
 }
 
-void Contours::trace_contours(cv::Mat& original_img, cv::Mat& edges){
+void Contours::clear_junctions(cv::Mat& edges){
+	std::vector<cv::Point2i> junctions;
+	//clear out junction points
+	for(int i=0;i<edges.rows;i++){
+		for(int j=0;j<edges.cols;j++){
+			cv::Point2i p(j,i);
+			if( junction(edges,p))
+				junctions.push_back(p);
+				//edges.at<uint8_t>(i,j) = 0;
+		}
+	}
+	for(cv::Point2i& p : junctions){
+		edges.at<uint8_t>(p.y,p.x) = 0;
+	}
+}
+
+void Contours::remove_noisy_contours(std::vector<Contour>& contours){
+	std::vector<Contour> new_contours;
+	for(Contour& c : contours){
+		if(c.points.size() > minimum_size_)
+			new_contours.push_back(c);
+	}
+	contours.swap(new_contours);
+}
+
+void Contours::display_contours(std::vector<Contour>& contours){
+	if(contours.size() == 0)
+		return;
+	cv::Mat display = cv::Mat::zeros(contours[0].mask.rows,contours[0].mask.cols, CV_8UC3);
+	for(Contour& c : contours){
+		cv::Mat mask;
+		cv::dilate(c.mask, mask, cv::Mat());
+		display.setTo(c.colour,mask);
+		/*cv::imshow("colour contours", display);
+		cv::imshow("current contour", c.mask);
+		cv::waitKey(0);*/
+	}
+	cv::imshow("colour contours", display);
+	cv::waitKey(0);
+}
+
+void Contours::trace_contours(const cv::Mat& original_img,  cv::Mat& edges){
 	cv::Mat mask = cv::Mat::ones(edges.rows,edges.cols,CV_8UC1);
 	cv::Mat visited = cv::Mat::zeros(edges.rows,edges.cols,CV_8UC1);
 	cv::Mat display = cv::Mat::zeros(edges.rows,edges.cols, CV_8UC3);
 	cv::Mat ori,mag,visualise;
 	orientation(edges, ori,mag);
 	cv::Mat oriMap = visu_orientation_map(mag,ori);
-	oriMap.copyTo(visualise);
-	cv::imshow("orimap",visualise);
-	cv::waitKey(0);
-	std::vector<Contour> contours;
+	oriMap.copyTo(visualise, edges);
+	//cv::imshow("orimap",visualise);
+	//cv::waitKey(0);
 
+	//sets the junction points to 0
+	clear_junctions(edges);
+
+	std::vector<Contour> contours;
 	bool cont = true;
 	while(cont){
 		Contour contour;
@@ -158,16 +202,42 @@ void Contours::trace_contours(cv::Mat& original_img, cv::Mat& edges){
 		contours.push_back(contour);
 		std::cout << contours.size()<<" # contours"<<std::endl;
 	}
+
 	cv::imwrite("contours.png",display);
 	for(Contour c : contours){
-		cv::imshow("contour", c.mask);
-		cv::waitKey(0);
+		//cv::imshow("contour", c.mask);
+
+		cv::Mat edges_disp = edges.clone();
+		for(cv::Point2i& p : c.points){
+			if(junction(edges,p)){
+				std::cout<<"junction!"<<std::endl;
+				cv::circle(edges_disp,p,5,cv::Scalar(255),3);
+				//cv::imshow("junctions", edges_disp);
+
+			}
+
+		}
+		//edges_disp.release();
+		//cv::waitKey(0);
 	}
+
+	remove_noisy_contours(contours);
+	display_contours(contours);
 
 
 }
 
-bool Contours::junction(cv::Mat& src, cv::Point2i& p){
+bool Contours::junction(const cv::Mat& src, cv::Point2i& p){
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |    1 2 3
+	 * |    4 p 5
+	 * |    6 7 8
+	 * v
+	 * (y) rows
+	 */
 
 	cv::Point2i p1(p.x -1, p.y-1);
 	cv::Point2i p2(p.x , p.y-1);
@@ -180,19 +250,46 @@ bool Contours::junction(cv::Mat& src, cv::Point2i& p){
 	cv::Point2i p7(p.x , p.y+1);
 	cv::Point2i p8(p.x +1, p.y+1);
 	std::vector<cv::Point2i> neighbours({p1,p2,p3,p4,p5,p6,p7,p8});
+	if(p.x == 0|| p.x == src.cols-1 || p.y == 0 || p.y == src.rows-1)
+		return false;
+//	for(cv::Point2i& n : neighbours){
+//		if(n.x < 0 || n.x >= src.cols || n.y < 0 || n.y >= src.rows){
+//			std::cout <<" point our of range "<<n<<std::endl;
+//		}
+//	}
 
+	//std::cout <<"exploring neighbours of "<<p<<std::endl;
 	// 1)
-	if( active(src,neighbours[0])&&  active(src,neighbours[2]) &&  (active(src,neighbours[6]) || active(src,neighbours[5]) || active(src,neighbours[7]) )  )
+	if( active(src,neighbours[0])&&  active(src,neighbours[2]) &&  (active(src,neighbours[6])))// || active(src,neighbours[5]) || active(src,neighbours[7]) )  )
 		return true;
 	// 2)
-	if( active(src,neighbours[2])&& (active(src,neighbours[3]) || active(src,neighbours[5]) || active(src,neighbours[0]) ) &&  active(src,neighbours[7])  )
+	if( active(src,neighbours[2])&& (active(src,neighbours[3]) && active(src,neighbours[7])))// || active(src,neighbours[0]) ) &&  active(src,neighbours[5])  )
 		return true;
 	// 3)
-	if(  (active(src,neighbours[1]) || active(src,neighbours[0]) || active(src,neighbours[2]) ) &&  active(src,neighbours[5]) &&  active(src,neighbours[7])  )
-			return true;
+
+
+	if(  active(src,neighbours[1]) &&  active(src,neighbours[5]) &&  active(src,neighbours[7])  ){
+
+		return true;
+	}
 	// 4)
-	if( active(src,neighbours[0])&&  (active(src,neighbours[4]) || active(src,neighbours[2]) || active(src,neighbours[7]) ) &&  active(src,neighbours[5])  )
+	if( active(src,neighbours[0])&&  (active(src,neighbours[4]) /*|| active(src,neighbours[2]) || active(src,neighbours[7])*/ ) &&  active(src,neighbours[5])  )
 				return true;
+
+	//diagonals
+	if( active(src,neighbours[0])&&  active(src,neighbours[4]) &&  active(src,neighbours[6])  )
+					return true;
+
+	if( active(src,neighbours[2])&&  active(src,neighbours[3]) &&  active(src,neighbours[6])  )
+					return true;
+
+	if( active(src,neighbours[1])&&  active(src,neighbours[3]) &&  active(src,neighbours[7])  )
+					return true;
+
+	if( active(src,neighbours[1])&&  active(src,neighbours[4]) &&  active(src,neighbours[5])  )
+					return true;
+
+
 
 
 	return false;
@@ -202,7 +299,7 @@ bool Contours::junction(cv::Mat& src, cv::Point2i& p){
 /*
  * takes as input an image and computes the map with the edges orientations
  */
-void Contours::orientation(cv::Mat& src, cv::Mat& ori, cv::Mat& mag){
+void Contours::orientation(const cv::Mat& src, cv::Mat& ori, cv::Mat& mag){
 	cv::Mat Sx;
 	cv::Sobel(src, Sx, CV_32F, 1, 0, 3);
 	cv::Mat Sy;
@@ -211,7 +308,7 @@ void Contours::orientation(cv::Mat& src, cv::Mat& ori, cv::Mat& mag){
 	cv::magnitude(Sx, Sy, mag);
 }
 
-bool Contours::trace_contour(cv::Mat& src, cv::Mat& visited , cv::Mat& mask, cv::Mat& display,Contour& contour){
+bool Contours::trace_contour(const cv::Mat& src, cv::Mat& visited , cv::Mat& mask, cv::Mat& display,Contour& contour){
 
 
 	contour.mask = cv::Mat::zeros(src.rows,src.cols,CV_8UC1);
@@ -273,6 +370,10 @@ bool Contours::trace_contour(cv::Mat& src, cv::Mat& visited , cv::Mat& mask, cv:
 	return true;
 
 
+
+}
+
+void Contours::harris(cv::Mat& edges){
 
 }
 

@@ -134,7 +134,7 @@ int main(int argc, char ** argv) {
 
 
 	Contours contours;
-	cv::Mat colour_img, gray_img, edges;
+	cv::Mat colour_img,colour_img_blurred, gray_img, edges;
 
 	if(argc != 2){
 		std::cout <<"$> test_contours <img>"<<std::endl;
@@ -143,13 +143,14 @@ int main(int argc, char ** argv) {
 
 	colour_img = cv::imread(argv[1]);
 	/// Reduce noise with a kernel 3x3
-	blur( colour_img, colour_img, Size(3,3) );
+	blur( colour_img, colour_img_blurred, Size(3,3) );
 
 	/// Convert the image to grayscale
 	cvtColor( colour_img, gray_img, CV_BGR2GRAY );
 
 
 	contours.compute_edges(gray_img, edges);
+	imshow("edges", edges);
 	contours.trace_contours(colour_img,edges);
 	return 0;
 
