@@ -176,7 +176,7 @@ void Contours::display_contours(std::vector<Contour>& contours){
 		cv::imshow("current contour", c.mask);
 		cv::waitKey(0);*/
 	}
-	//cv::imshow("colour contours", display);
+	cv::imshow("colour contours", display);
 	cv::waitKey(0);
 }
 
