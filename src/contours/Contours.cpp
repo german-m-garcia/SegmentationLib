@@ -147,7 +147,7 @@ void Contours::clear_junctions(cv::Mat& edges){
 			cv::Point2i p(j,i);
 			if( junction(edges,p))
 				junctions.push_back(p);
-				//edges.at<uint8_t>(i,j) = 0;
+
 		}
 	}
 	for(cv::Point2i& p : junctions){
@@ -176,7 +176,7 @@ void Contours::display_contours(std::vector<Contour>& contours){
 		cv::imshow("current contour", c.mask);
 		cv::waitKey(0);*/
 	}
-	cv::imshow("colour contours", display);
+	//cv::imshow("colour contours", display);
 	cv::waitKey(0);
 }
 
@@ -258,37 +258,105 @@ bool Contours::junction(const cv::Mat& src, cv::Point2i& p){
 //		}
 //	}
 
-	//std::cout <<"exploring neighbours of "<<p<<std::endl;
-	// 1)
+
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |    1   3
+	 * |      p
+	 * |      7
+	 * v
+	 * (y) rows
+	 */
 	if( active(src,neighbours[0])&&  active(src,neighbours[2]) &&  (active(src,neighbours[6])))// || active(src,neighbours[5]) || active(src,neighbours[7]) )  )
 		return true;
-	// 2)
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |        3
+	 * |    4 p
+	 * |        8
+	 * v
+	 * (y) rows
+	 */
 	if( active(src,neighbours[2])&& (active(src,neighbours[3]) && active(src,neighbours[7])))// || active(src,neighbours[0]) ) &&  active(src,neighbours[5])  )
 		return true;
-	// 3)
 
 
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |      2
+	 * |      p
+	 * |    6   8
+	 * v
+	 * (y) rows
+	 */
 	if(  active(src,neighbours[1]) &&  active(src,neighbours[5]) &&  active(src,neighbours[7])  ){
 
 		return true;
 	}
-	// 4)
-	if( active(src,neighbours[0])&&  (active(src,neighbours[4]) /*|| active(src,neighbours[2]) || active(src,neighbours[7])*/ ) &&  active(src,neighbours[5])  )
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |    1
+	 * |      p 5
+	 * |    6
+	 * v
+	 * (y) rows
+	 */
+	if( active(src,neighbours[0])&&  active(src,neighbours[4]) &&  active(src,neighbours[5])  )
 				return true;
 
-	//diagonals
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |    1
+	 * |      p 5
+	 * |      7
+	 * v
+	 * (y) rows
+	 */
 	if( active(src,neighbours[0])&&  active(src,neighbours[4]) &&  active(src,neighbours[6])  )
 					return true;
 
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |        3
+	 * |    4 p
+	 * |      7
+	 * v
+	 * (y) rows
+	 */
 	if( active(src,neighbours[2])&&  active(src,neighbours[3]) &&  active(src,neighbours[6])  )
 					return true;
 
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |      2
+	 * |    4 p
+	 * |       8
+	 * v
+	 * (y) rows
+	 */
 	if( active(src,neighbours[1])&&  active(src,neighbours[3]) &&  active(src,neighbours[7])  )
 					return true;
 
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |      2
+	 * |      p 5
+	 * |    6
+	 * v
+	 * (y) rows
+	 */
 	if( active(src,neighbours[1])&&  active(src,neighbours[4]) &&  active(src,neighbours[5])  )
 					return true;
-
 
 
 

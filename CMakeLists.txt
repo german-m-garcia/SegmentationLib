@@ -134,7 +134,11 @@ add_library(SEGMENTATION SHARED
 
 #Create an Executable for testing contours
 add_executable(contours ${PROJECT_SOURCE_DIR}/apps/test_contours.cpp)
-target_link_libraries( contours SEGMENTATION  ${Boost_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS}) #mrsmapLib mrsslamLib)
+target_link_libraries( contours SEGMENTATION  ${Boost_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
+
+#Create an Executable for testing contours
+add_executable(harris ${PROJECT_SOURCE_DIR}/apps/test_harris.cpp)
+target_link_libraries( harris SEGMENTATION  ${Boost_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS}) 
 
 
 
