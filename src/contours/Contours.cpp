@@ -140,19 +140,75 @@ cv::Mat Contours::visu_orientation_map(const cv::Mat& mag, const cv::Mat& ori, d
 }
 
 void Contours::clear_junctions(cv::Mat& edges){
-	std::vector<cv::Point2i> junctions;
+	std::vector<Junction> junctions;
+
+
 	//clear out junction points
 	for(int i=0;i<edges.rows;i++){
 		for(int j=0;j<edges.cols;j++){
 			cv::Point2i p(j,i);
-			if( junction(edges,p))
-				junctions.push_back(p);
+			Junction junc;
+			if( junction(edges,p,junc)){
+				junctions.push_back(junc);
+
+			}
 
 		}
 	}
-	for(cv::Point2i& p : junctions){
-		edges.at<uint8_t>(p.y,p.x) = 0;
+	for(Junction& j : junctions){
+
+		clear_junction(edges, j);
 	}
+}
+
+void Contours::clear_junction(cv::Mat& edges, Junction& j){
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |    1 2 3
+	 * |    4 p 5
+	 * |    6 7 8
+	 * v
+	 * (y) rows
+	 */
+
+	cv::Point2i p1(j.p.x -1, j.p.y-1);
+	cv::Point2i p2(j.p.x , j.p.y-1);
+	cv::Point2i p3(j.p.x +1, j.p.y-1);
+
+	cv::Point2i p4(j.p.x -1, j.p.y);
+	cv::Point2i p5(j.p.x +1, j.p.y);
+
+	cv::Point2i p6(j.p.x -1, j.p.y+1);
+	cv::Point2i p7(j.p.x , j.p.y+1);
+	cv::Point2i p8(j.p.x +1, j.p.y+1);
+
+	if(j.top_left){
+		edges.at<uint8_t>(j.p.y, j.p.x) = 0;
+		edges.at<uint8_t>(p5.y, p5.x) = 0;
+		edges.at<uint8_t>(p7.y, p7.x) = 0;
+		edges.at<uint8_t>(p8.y, p8.x) = 0;
+	}
+	else if(j.top_right){
+		edges.at<uint8_t>(j.p.y, j.p.x) = 0;
+		edges.at<uint8_t>(p4.y, p4.x) = 0;
+		edges.at<uint8_t>(p6.y, p6.x) = 0;
+		edges.at<uint8_t>(p7.y, p7.x) = 0;
+	}
+	else if(j.bottom_left){
+		edges.at<uint8_t>(j.p.y, j.p.x) = 0;
+		edges.at<uint8_t>(p5.y, p5.x) = 0;
+		edges.at<uint8_t>(p2.y, p2.x) = 0;
+		edges.at<uint8_t>(p3.y, p3.x) = 0;
+		}
+	else if(j.bottom_right){
+		edges.at<uint8_t>(j.p.y, j.p.x) = 0;
+		edges.at<uint8_t>(p1.y, p1.x) = 0;
+		edges.at<uint8_t>(p2.y, p2.x) = 0;
+		edges.at<uint8_t>(p4.y, p4.x) = 0;
+	}
+
 }
 
 void Contours::remove_noisy_contours(std::vector<Contour>& contours){
@@ -209,12 +265,6 @@ void Contours::trace_contours(const cv::Mat& original_img,  cv::Mat& edges){
 
 		cv::Mat edges_disp = edges.clone();
 		for(cv::Point2i& p : c.points){
-			if(junction(edges,p)){
-				std::cout<<"junction!"<<std::endl;
-				cv::circle(edges_disp,p,5,cv::Scalar(255),3);
-				//cv::imshow("junctions", edges_disp);
-
-			}
 
 		}
 		//edges_disp.release();
@@ -227,7 +277,15 @@ void Contours::trace_contours(const cv::Mat& original_img,  cv::Mat& edges){
 
 }
 
-bool Contours::junction(const cv::Mat& src, cv::Point2i& p){
+/*
+ *
+ * position: a vector of 4 booleans for indicating where the junction
+ * was found, top left, top right, bottom left, bottom right.
+ *
+ */
+bool Contours::junction(const cv::Mat& src, cv::Point2i& p, Junction& j){
+
+
 
 	/*
 	 *  ------------> (x) cols
@@ -238,6 +296,7 @@ bool Contours::junction(const cv::Mat& src, cv::Point2i& p){
 	 * v
 	 * (y) rows
 	 */
+	j.p = p;
 
 	cv::Point2i p1(p.x -1, p.y-1);
 	cv::Point2i p2(p.x , p.y-1);
@@ -269,8 +328,11 @@ bool Contours::junction(const cv::Mat& src, cv::Point2i& p){
 	 * v
 	 * (y) rows
 	 */
-	if( active(src,neighbours[0])&&  active(src,neighbours[2]) &&  (active(src,neighbours[6])))// || active(src,neighbours[5]) || active(src,neighbours[7]) )  )
+	if( active(src,neighbours[0])&&  active(src,neighbours[2]) &&  (active(src,neighbours[6]))){
+		j.bottom_right = true;
 		return true;
+	}
+
 	/*
 	 *  ------------> (x) cols
 	 * |
@@ -280,9 +342,10 @@ bool Contours::junction(const cv::Mat& src, cv::Point2i& p){
 	 * v
 	 * (y) rows
 	 */
-	if( active(src,neighbours[2])&& (active(src,neighbours[3]) && active(src,neighbours[7])))// || active(src,neighbours[0]) ) &&  active(src,neighbours[5])  )
+	if( active(src,neighbours[2])&& (active(src,neighbours[3]) && active(src,neighbours[7]))){
+		j.bottom_left = true;
 		return true;
-
+	}
 
 	/*
 	 *  ------------> (x) cols
@@ -294,7 +357,7 @@ bool Contours::junction(const cv::Mat& src, cv::Point2i& p){
 	 * (y) rows
 	 */
 	if(  active(src,neighbours[1]) &&  active(src,neighbours[5]) &&  active(src,neighbours[7])  ){
-
+		j.top_right = true;
 		return true;
 	}
 
@@ -307,8 +370,10 @@ bool Contours::junction(const cv::Mat& src, cv::Point2i& p){
 	 * v
 	 * (y) rows
 	 */
-	if( active(src,neighbours[0])&&  active(src,neighbours[4]) &&  active(src,neighbours[5])  )
-				return true;
+	if( active(src,neighbours[0])&&  active(src,neighbours[4]) &&  active(src,neighbours[5])  ){
+		j.top_right = true;
+		return true;
+	}
 
 	/*
 	 *  ------------> (x) cols
@@ -319,8 +384,10 @@ bool Contours::junction(const cv::Mat& src, cv::Point2i& p){
 	 * v
 	 * (y) rows
 	 */
-	if( active(src,neighbours[0])&&  active(src,neighbours[4]) &&  active(src,neighbours[6])  )
-					return true;
+	if( active(src,neighbours[0])&&  active(src,neighbours[4]) &&  active(src,neighbours[6])  ){
+		j.bottom_right = true;
+		return true;
+	}
 
 	/*
 	 *  ------------> (x) cols
@@ -331,8 +398,10 @@ bool Contours::junction(const cv::Mat& src, cv::Point2i& p){
 	 * v
 	 * (y) rows
 	 */
-	if( active(src,neighbours[2])&&  active(src,neighbours[3]) &&  active(src,neighbours[6])  )
-					return true;
+	if( active(src,neighbours[2])&&  active(src,neighbours[3]) &&  active(src,neighbours[6])  ){
+		j.bottom_left = true;
+		return true;
+	}
 
 	/*
 	 *  ------------> (x) cols
@@ -343,8 +412,10 @@ bool Contours::junction(const cv::Mat& src, cv::Point2i& p){
 	 * v
 	 * (y) rows
 	 */
-	if( active(src,neighbours[1])&&  active(src,neighbours[3]) &&  active(src,neighbours[7])  )
-					return true;
+	if( active(src,neighbours[1])&&  active(src,neighbours[3]) &&  active(src,neighbours[7])  ){
+		j.top_left = true;
+		return true;
+	}
 
 	/*
 	 *  ------------> (x) cols
@@ -355,9 +426,106 @@ bool Contours::junction(const cv::Mat& src, cv::Point2i& p){
 	 * v
 	 * (y) rows
 	 */
-	if( active(src,neighbours[1])&&  active(src,neighbours[4]) &&  active(src,neighbours[5])  )
-					return true;
+	if( active(src,neighbours[1])&&  active(src,neighbours[4]) &&  active(src,neighbours[5])  ){
+		j.top_right = true;
+		return true;
+	}
 
+
+	//probably will need to get rid of these
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |     1
+	 * |      p 5
+	 * |        8
+	 * v
+	 * (y) rows
+	 */
+	//if( active(src,neighbours[0])&&  active(src,neighbours[4]) &&  active(src,neighbours[7])  )
+	//				return true;
+
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |        3
+	 * |    4 p
+	 * |    6
+	 * v
+	 * (y) rows
+	 */
+	//if( active(src,neighbours[2])&&  active(src,neighbours[3]) &&  active(src,neighbours[5])  )
+	//		return true;
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |    1
+	 * |    4 p
+	 * |       8
+	 * v
+	 * (y) rows
+	 */
+	//if( active(src,neighbours[0])&&  active(src,neighbours[3]) &&  active(src,neighbours[7])  )
+	//		return true;
+
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |        3
+	 * |      p 5
+	 * |    6
+	 * v
+	 * (y) rows
+	 */
+	//if( active(src,neighbours[2])&&  active(src,neighbours[4]) &&  active(src,neighbours[5])  )
+	//			return true;
+
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |    1 2 3
+	 * |    4 p 5
+	 * |    6 7 8
+	 * v
+	 * (y) rows
+	 */
+
+
+
+	/*
+		 *  ------------> (x) cols
+		 * |
+		 * |    1 2 3
+		 * |    4 p 5
+		 * |    6 7 8
+		 * v
+		 * (y) rows
+		 */
+
+	/*
+		 *  ------------> (x) cols
+		 * |
+		 * |    1 2 3
+		 * |    4 p 5
+		 * |    6 7 8
+		 * v
+		 * (y) rows
+		 */
+
+	/*
+		 *  ------------> (x) cols
+		 * |
+		 * |    1 2 3
+		 * |    4 p 5
+		 * |    6 7 8
+		 * v
+		 * (y) rows
+		 */
 
 
 	return false;

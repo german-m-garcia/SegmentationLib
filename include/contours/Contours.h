@@ -22,6 +22,15 @@ struct Contour {
 
 };
 
+struct Junction {
+
+	cv::Point2i p;
+	bool top_left;
+	bool top_right;
+	bool bottom_left;
+	bool bottom_right;
+};
+
 class Contours {
 public:
 	Contours();
@@ -45,7 +54,8 @@ private:
 	std::vector<cv::Point2i> get_active_non_visited_neighbours(const cv::Mat&src, cv::Mat& visited, cv::Point&p);
 	int neighbours(const cv::Mat& src, cv::Point& p);
 	std::vector<cv::Point2i> get_neighbour_points(const cv::Mat& src, cv::Point&p);
-	bool junction(const cv::Mat& src, cv::Point2i& p);
+	bool junction(const cv::Mat& src, cv::Point2i& p, Junction& j);
+	void clear_junction(cv::Mat& edges, Junction& j);
 	void clear_junctions(cv::Mat& edges);
 	void remove_noisy_contours(std::vector<Contour>& contours);
 
