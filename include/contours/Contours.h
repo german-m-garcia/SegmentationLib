@@ -36,12 +36,14 @@ public:
 	Contours();
 	virtual ~Contours();
 
-	void compute_edges(cv::Mat& src, cv::Mat& dst);
+	void compute_edges(cv::Mat& src, cv::Mat& edges);
+	void scharr_edges(cv::Mat& colour_img, cv::Mat& colour_edges, cv::Mat& gray_edges, cv::Mat& float_edges, cv::Mat& ori);
+
 
 
 	void trace_contours(const cv::Mat& original_img,  cv::Mat& src);
 	cv::Mat visu_orientation_map(const cv::Mat& mag, const cv::Mat& ori, double thresh = 1.0);
-	void harris(cv::Mat& edges);
+	cv::Mat visu_orientation_map2(const cv::Mat& mag, const cv::Mat& ori, double thresh = 1.0);
 	void display_contours(std::vector<Contour>& contours);
 
 

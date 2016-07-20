@@ -24,9 +24,11 @@ Contours::~Contours() {
 }
 
 /*
- * src: input image, grayscale 8-bit
+ * @src: input image, grayscale 8-bit
+ * Computes the edges of the src image using the Canny edge
+ * detector.
  */
-void Contours::compute_edges(cv::Mat& src, cv::Mat& dst){
+void Contours::compute_edges(cv::Mat& src, cv::Mat& edges){
 
 	int edgeThresh = 1;
 	int lowThreshold = 15;
@@ -38,7 +40,7 @@ void Contours::compute_edges(cv::Mat& src, cv::Mat& dst){
 	/// Canny detector
 	 /// Reduce noise with a kernel 3x3
 	cv::blur( src, src_blurred, cv::Size(3,3) );
-	cv::Canny(src_blurred, dst, lowThreshold, max_lowThreshold, kernel_size);
+	cv::Canny(src_blurred, edges, lowThreshold, max_lowThreshold, kernel_size);
 	//cv::imshow("canny", dst);
 	//cv::waitKey(0);
 
@@ -96,7 +98,7 @@ std::vector<cv::Point2i> Contours::get_neighbour_points(const cv::Mat& src, cv::
 }
 
 /*
- * computes the number of active neighbours for a given pixel p
+ * Computes the number of active neighbours for a given pixel p.
  */
 int Contours::neighbours(const cv::Mat& src, cv::Point& p){
 	std::vector<cv::Point2i>  neighbour_points = get_neighbour_points(src, p);
@@ -109,6 +111,11 @@ int Contours::neighbours(const cv::Mat& src, cv::Point& p){
 	return active_neighbours;
 }
 
+/*
+ * @mag: the gradient magnitude
+ * @ori: the orientation map
+ * Visualises an orientation map.
+ */
 cv::Mat Contours::visu_orientation_map(const cv::Mat& mag, const cv::Mat& ori, double thresh)
 {
 	cv::Mat oriMap = cv::Mat::zeros(ori.size(), CV_8UC3);
@@ -139,6 +146,67 @@ cv::Mat Contours::visu_orientation_map(const cv::Mat& mag, const cv::Mat& ori, d
     return oriMap;
 }
 
+/*
+ * @mag: the gradient magnitude
+ * @ori: the orientation map
+ *
+ * Visualises an orientation map. Orientations are in modulo 180°, then discretised
+ * in 4 bins of 45° each. Each bin is assigned a colour.
+ *
+ * @returns the Mat with the colours/orientation
+ */
+cv::Mat Contours::visu_orientation_map2(const cv::Mat& mag, const cv::Mat& ori, double thresh)
+{
+	cv::Mat oriMap = cv::Mat::zeros(ori.size(), CV_8UC3);
+	cv::Vec3b red(0, 0, 255);
+	cv::Vec3b cyan(255, 255, 0);
+	cv::Vec3b green(0, 255, 0);
+	cv::Vec3b yellow(0, 255, 255);
+    for(int i = 0; i < mag.rows*mag.cols; i++)
+    {
+        float* magPixel = reinterpret_cast<float*>(mag.data + i*sizeof(float));
+        if(*magPixel > thresh)
+        {
+            float* oriPixel = reinterpret_cast<float*>(ori.data + i*sizeof(float));
+            cv::Vec3b* mapPixel = reinterpret_cast<cv::Vec3b*>(oriMap.data + i*3*sizeof(char));
+            float radians = (*oriPixel);
+            if(radians > 180.0)
+            	radians -= 180.f;
+            if(radians <45.0)
+                *mapPixel = red;
+            else if(radians >= 45.0 && radians < 90.0)
+                *mapPixel = cyan;
+            else if(radians >= 90.0 && radians < 135.0)
+                *mapPixel = green;
+            else if(*oriPixel >= 135.0 && radians < 180.0)
+                *mapPixel = yellow;
+        }
+    }
+
+
+
+    return oriMap;
+}
+
+
+/*
+ * iterates over the pixels in the edge map, and assigns them the orientation
+ * of the majority of the 3x3 neighbourhood
+ */
+/*void Contours::get_majority_colour(cv::Mat& orientation_map, cv::Mat& edges, cv::Mat& dst){
+
+}*/
+
+
+
+/*
+ * @edges: CV_8UC1
+ *
+ * Iterates over the pixels in the edge map, detects junction points,
+ * and in a final iteration a neighbourhood of 4 pixels around the junction points
+ * is set to 0 in the edge map.
+ *
+ */
 void Contours::clear_junctions(cv::Mat& edges){
 	std::vector<Junction> junctions;
 
@@ -161,6 +229,11 @@ void Contours::clear_junctions(cv::Mat& edges){
 	}
 }
 
+/*
+ * Sets a neighbourhood of 4 pixels around the junction point to 0
+ * in the edge map.
+ *
+ */
 void Contours::clear_junction(cv::Mat& edges, Junction& j){
 
 	/*
@@ -211,6 +284,10 @@ void Contours::clear_junction(cv::Mat& edges, Junction& j){
 
 }
 
+/*
+ * iterates over the contours, checks which have less than minimum_size_
+ * points and removes them
+ */
 void Contours::remove_noisy_contours(std::vector<Contour>& contours){
 	std::vector<Contour> new_contours;
 	for(Contour& c : contours){
@@ -220,6 +297,27 @@ void Contours::remove_noisy_contours(std::vector<Contour>& contours){
 	contours.swap(new_contours);
 }
 
+void Contours::scharr_edges(cv::Mat& colour_img, cv::Mat& colour_edges, cv::Mat& gray_edges, cv::Mat& float_edges, cv::Mat& ori){
+	cv::Mat gradx, grady, tmp;
+	cv::Scharr(colour_img, gradx, CV_32F, 1, 0, 1);
+	cv::Scharr(colour_img, grady, CV_32F, 0, 1, 1);
+
+	cv::magnitude(gradx, grady, colour_edges);
+	cv::phase(gradx, grady, ori, true);
+
+
+	/// Convert the colour edges to grayscale
+	colour_edges.convertTo(tmp,CV_8UC3);
+	colour_edges.convertTo(float_edges,CV_32FC1);
+
+	cvtColor( tmp, gray_edges, CV_BGR2GRAY );
+	gray_edges = gray_edges > 100;
+
+}
+
+/*
+ * Dilates the contours, and shows each of them in a different colour.
+ */
 void Contours::display_contours(std::vector<Contour>& contours){
 	if(contours.size() == 0)
 		return;
@@ -236,16 +334,21 @@ void Contours::display_contours(std::vector<Contour>& contours){
 	cv::waitKey(0);
 }
 
+/*
+ * Traces every edge present in the edge map into a contour.
+ * Right now it finds junctions as breaking points along the contours.
+ * It should also find points where the curvature changes.
+ */
 void Contours::trace_contours(const cv::Mat& original_img,  cv::Mat& edges){
 	cv::Mat mask = cv::Mat::ones(edges.rows,edges.cols,CV_8UC1);
 	cv::Mat visited = cv::Mat::zeros(edges.rows,edges.cols,CV_8UC1);
 	cv::Mat display = cv::Mat::zeros(edges.rows,edges.cols, CV_8UC3);
 	cv::Mat ori,mag,visualise;
 	orientation(edges, ori,mag);
-	cv::Mat oriMap = visu_orientation_map(mag,ori);
-	oriMap.copyTo(visualise, edges);
-	//cv::imshow("orimap",visualise);
-	//cv::waitKey(0);
+	cv::Mat oriMap = visu_orientation_map2(mag,ori);
+	oriMap.copyTo(visualise/*, edges*/);
+	cv::imshow("orimap",visualise);
+	cv::waitKey(0);
 
 	//sets the junction points to 0
 	clear_junctions(edges);
@@ -279,9 +382,8 @@ void Contours::trace_contours(const cv::Mat& original_img,  cv::Mat& edges){
 
 /*
  *
- * position: a vector of 4 booleans for indicating where the junction
- * was found, top left, top right, bottom left, bottom right.
- *
+ * Returns true if point p is a junction. The junction information
+ * is returned in &j.
  */
 bool Contours::junction(const cv::Mat& src, cv::Point2i& p, Junction& j){
 
@@ -432,102 +534,6 @@ bool Contours::junction(const cv::Mat& src, cv::Point2i& p, Junction& j){
 	}
 
 
-	//probably will need to get rid of these
-
-	/*
-	 *  ------------> (x) cols
-	 * |
-	 * |     1
-	 * |      p 5
-	 * |        8
-	 * v
-	 * (y) rows
-	 */
-	//if( active(src,neighbours[0])&&  active(src,neighbours[4]) &&  active(src,neighbours[7])  )
-	//				return true;
-
-
-	/*
-	 *  ------------> (x) cols
-	 * |
-	 * |        3
-	 * |    4 p
-	 * |    6
-	 * v
-	 * (y) rows
-	 */
-	//if( active(src,neighbours[2])&&  active(src,neighbours[3]) &&  active(src,neighbours[5])  )
-	//		return true;
-
-	/*
-	 *  ------------> (x) cols
-	 * |
-	 * |    1
-	 * |    4 p
-	 * |       8
-	 * v
-	 * (y) rows
-	 */
-	//if( active(src,neighbours[0])&&  active(src,neighbours[3]) &&  active(src,neighbours[7])  )
-	//		return true;
-
-
-	/*
-	 *  ------------> (x) cols
-	 * |
-	 * |        3
-	 * |      p 5
-	 * |    6
-	 * v
-	 * (y) rows
-	 */
-	//if( active(src,neighbours[2])&&  active(src,neighbours[4]) &&  active(src,neighbours[5])  )
-	//			return true;
-
-
-	/*
-	 *  ------------> (x) cols
-	 * |
-	 * |    1 2 3
-	 * |    4 p 5
-	 * |    6 7 8
-	 * v
-	 * (y) rows
-	 */
-
-
-
-	/*
-		 *  ------------> (x) cols
-		 * |
-		 * |    1 2 3
-		 * |    4 p 5
-		 * |    6 7 8
-		 * v
-		 * (y) rows
-		 */
-
-	/*
-		 *  ------------> (x) cols
-		 * |
-		 * |    1 2 3
-		 * |    4 p 5
-		 * |    6 7 8
-		 * v
-		 * (y) rows
-		 */
-
-	/*
-		 *  ------------> (x) cols
-		 * |
-		 * |    1 2 3
-		 * |    4 p 5
-		 * |    6 7 8
-		 * v
-		 * (y) rows
-		 */
-
-
 	return false;
 
 }
@@ -544,6 +550,9 @@ void Contours::orientation(const cv::Mat& src, cv::Mat& ori, cv::Mat& mag){
 	cv::magnitude(Sx, Sy, mag);
 }
 
+/*
+ * Finds a seed in the edge map, and traces it to find a connected component.
+ */
 bool Contours::trace_contour(const cv::Mat& src, cv::Mat& visited , cv::Mat& mask, cv::Mat& display,Contour& contour){
 
 
@@ -609,7 +618,4 @@ bool Contours::trace_contour(const cv::Mat& src, cv::Mat& visited , cv::Mat& mas
 
 }
 
-void Contours::harris(cv::Mat& edges){
-
-}
 

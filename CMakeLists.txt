@@ -123,6 +123,7 @@ add_library(SEGMENTATION SHARED
    ${PROJECT_SOURCE_DIR}/pcl_hack/uniform_sampling.cpp
    
    ${PROJECT_SOURCE_DIR}/contours/Contours.cpp
+   ${PROJECT_SOURCE_DIR}/contours/Gestalts.cpp
    
    #${PROJECT_SOURCE_DIR}/features/test_features.cpp
      

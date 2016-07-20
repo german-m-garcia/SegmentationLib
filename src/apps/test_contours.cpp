@@ -134,24 +134,49 @@ int main(int argc, char ** argv) {
 
 
 	Contours contours;
-	cv::Mat colour_img,colour_img_blurred, gray_img, edges;
+	cv::Mat colour_img,colour_img_blurred, gray_img,col_edges, edges, ori;
+	cv::Mat float_edges;
 
 	if(argc != 2){
 		std::cout <<"$> test_contours <img>"<<std::endl;
 		return -1;
 	}
+	bool canny = true;
+
 
 	colour_img = cv::imread(argv[1]);
-	/// Reduce noise with a kernel 3x3
-	blur( colour_img, colour_img_blurred, Size(3,3) );
+	if(canny){
 
-	/// Convert the image to grayscale
-	cvtColor( colour_img, gray_img, CV_BGR2GRAY );
+		/// Reduce noise with a kernel 3x3
+		blur( colour_img, colour_img_blurred, Size(3,3) );
+
+		/// Convert the image to grayscale
+		cvtColor( colour_img, gray_img, CV_BGR2GRAY );
 
 
-	contours.compute_edges(gray_img, edges);
-	imshow("edges", edges);
-	contours.trace_contours(colour_img,edges);
+		contours.compute_edges(gray_img, edges);
+		imshow("edges", edges);
+		contours.trace_contours(colour_img,edges);
+
+	}
+	else{
+
+		/// Reduce noise with a kernel 3x3
+		blur( colour_img, colour_img_blurred, Size(3,3) );
+		contours.scharr_edges(colour_img, col_edges, edges, float_edges,ori);
+		cv::Mat visu = contours.visu_orientation_map2(float_edges,ori);
+		cv::Mat tmp;
+		visu.copyTo(tmp,edges);
+		imshow("orientation", tmp);
+
+		imshow("scharr edges", edges);
+		waitKey(0);
+
+
+	}
+
+
+
 	return 0;
 
 
