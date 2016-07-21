@@ -198,7 +198,7 @@ cv::Mat Contours::visu_orientation_map2(const cv::Mat& mag, const cv::Mat& ori, 
            if(radians < intervals_[0])
         	   *mapPixel = colours_[0];
            for(int ind = 1; ind <nintervals_; ind++){
-        	   if(radians > intervals_[ind-1] && radians < intervals_[ind]){
+        	   if(radians > intervals_[ind-1] && radians <= intervals_[ind]){
         		   *mapPixel = colours_[ind];
         	   }
            }
@@ -214,9 +214,16 @@ cv::Mat Contours::visu_orientation_map2(const cv::Mat& mag, const cv::Mat& ori, 
 void Contours::get_majority_orientation(cv::Mat& orientation_map, cv::Point2i& p, cv::Vec3b& orientation){
 	std::vector<cv::Point2i> neighbours = get_neighbour_points(orientation_map, p);
 	std::map<cv::Vec3b, int, compare_colors<cv::Vec3b>> countmap;
-	orientation =  orientation_map.at<cv::Vec3b>(p.y,p.x);
 	int max = 0;
+	//by default, the orientation is the one of the pixel
+	orientation =  orientation_map.at<cv::Vec3b>(p.y,p.x);
+	if(orientation[0] >0 || orientation[1]>0 || orientation[2]>0){
+		countmap[orientation]++;
+		max = 1;
+	}
+	//iterate over the neighbours
 	for(cv::Point2i& n : neighbours){
+		//count the occurrences of the neighbours colours
 		cv::Vec3b key = orientation_map.at<cv::Vec3b>(n.y,n.x);
 		if(key[0] >0 || key[1]>0 || key[2]>0)
 			countmap[key]++;
@@ -403,8 +410,8 @@ void Contours::trace_contours(const cv::Mat& original_img,  cv::Mat& edges){
 	oriMap.copyTo(visualise/*, edges*/);
 
 	filter_majority_orientation(oriMap,edges,oriMapFiltered);
-	 oriMap = visu_orientation_map(mag,ori);
-	cv::imshow("orimap",oriMap);
+
+	cv::imshow("orimap",visualise);
 	cv::imshow("orimap filtered",oriMapFiltered);
 	cv::waitKey(0);
 
