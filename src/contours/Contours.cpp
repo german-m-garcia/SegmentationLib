@@ -6,6 +6,7 @@
  */
 
 #include <iostream>
+#include <map>
 #include "contours/Contours.h"
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
@@ -14,8 +15,13 @@
 //initialise the Random Number Generator
 cv::RNG Contours::rng = cv::RNG();
 
-Contours::Contours(): minimum_size_(35) {
-	// TODO Auto-generated constructor stub
+Contours::Contours(): minimum_size_(35),red_(0, 0, 255), red2_(0, 125, 255), cyan_(255, 255, 0), cyan2_(255, 255, 125),
+green_(0, 255, 0), green2_(125, 255, 0), yellow_(0, 255, 255), yellow2_(125, 255, 255),
+		nintervals_(8),intervals_(nintervals_), colours_({red_,red2_,cyan_,cyan2_,green_,green2_,yellow_,yellow2_}) {
+
+	for(int i= 0;i<nintervals_;i++){
+		colour_indices_[colours_[i]] = i;
+	}
 
 }
 
@@ -46,12 +52,22 @@ void Contours::compute_edges(cv::Mat& src, cv::Mat& edges){
 
 }
 
+std::vector<cv::Point2i> Contours::get_neighbour_points_in_edge(const Contour& c, const cv::Point& p){
+	std::vector<cv::Point2i> return_points;
+	std::vector<cv::Point2i> neighs = get_neighbour_points(c.mask,p);
+
+	for(cv::Point2i& neighbour : neighs){
+		if( active( c.mask, neighbour) )
+			return_points.push_back(neighbour);
+
+	}
+	return return_points;
+}
+
 std::vector<cv::Point2i> Contours::get_active_non_visited_neighbours(const cv::Mat&src, cv::Mat& visited, cv::Point&p){
 	std::vector<cv::Point2i> return_points;
 	std::vector<cv::Point2i> neighs = get_neighbour_points(src,p);
-	//if it is a junction skip the rest
-	//if(junction(src,p))
-	//	return return_points;
+
 	for(cv::Point2i& neighbour : neighs){
 		if( src.at<uint8_t>(neighbour.y, neighbour.x) > 0 &&  visited.at<uint8_t>(neighbour.y, neighbour.x) == 0){
 			return_points.push_back(neighbour);
@@ -64,7 +80,7 @@ std::vector<cv::Point2i> Contours::get_active_non_visited_neighbours(const cv::M
 /*
  * returns a vector with the neighbouring pixels for a given pixel p
  */
-std::vector<cv::Point2i> Contours::get_neighbour_points(const cv::Mat& src, cv::Point&p){
+std::vector<cv::Point2i> Contours::get_neighbour_points(const cv::Mat& src, const cv::Point&p){
 
 	/*
 	 *  ------------> (x) cols
@@ -158,11 +174,17 @@ cv::Mat Contours::visu_orientation_map(const cv::Mat& mag, const cv::Mat& ori, d
 cv::Mat Contours::visu_orientation_map2(const cv::Mat& mag, const cv::Mat& ori, double thresh)
 {
 	cv::Mat oriMap = cv::Mat::zeros(ori.size(), CV_8UC3);
-	cv::Vec3b red(0, 0, 255);
-	cv::Vec3b cyan(255, 255, 0);
-	cv::Vec3b green(0, 255, 0);
-	cv::Vec3b yellow(0, 255, 255);
-    for(int i = 0; i < mag.rows*mag.cols; i++)
+
+
+
+
+	//fill in the intervals
+	for(int i=0;i<nintervals_;i++){
+		intervals_[i] = 180. / (nintervals_*1.) * (i+1.);
+		std::cout <<"interval["<<i<<"]="<<intervals_[i];
+	}
+
+	for(int i = 0; i < mag.rows*mag.cols; i++)
     {
         float* magPixel = reinterpret_cast<float*>(mag.data + i*sizeof(float));
         if(*magPixel > thresh)
@@ -172,30 +194,62 @@ cv::Mat Contours::visu_orientation_map2(const cv::Mat& mag, const cv::Mat& ori, 
             float radians = (*oriPixel);
             if(radians > 180.0)
             	radians -= 180.f;
-            if(radians <45.0)
-                *mapPixel = red;
-            else if(radians >= 45.0 && radians < 90.0)
-                *mapPixel = cyan;
-            else if(radians >= 90.0 && radians < 135.0)
-                *mapPixel = green;
-            else if(*oriPixel >= 135.0 && radians < 180.0)
-                *mapPixel = yellow;
+
+           if(radians < intervals_[0])
+        	   *mapPixel = colours_[0];
+           for(int ind = 1; ind <nintervals_; ind++){
+        	   if(radians > intervals_[ind-1] && radians < intervals_[ind]){
+        		   *mapPixel = colours_[ind];
+        	   }
+           }
         }
     }
-
-
 
     return oriMap;
 }
 
 
+
+
+void Contours::get_majority_orientation(cv::Mat& orientation_map, cv::Point2i& p, cv::Vec3b& orientation){
+	std::vector<cv::Point2i> neighbours = get_neighbour_points(orientation_map, p);
+	std::map<cv::Vec3b, int, compare_colors<cv::Vec3b>> countmap;
+	orientation =  orientation_map.at<cv::Vec3b>(p.y,p.x);
+	int max = 0;
+	for(cv::Point2i& n : neighbours){
+		cv::Vec3b key = orientation_map.at<cv::Vec3b>(n.y,n.x);
+		if(key[0] >0 || key[1]>0 || key[2]>0)
+			countmap[key]++;
+	}
+	for (const auto& kv : countmap) {
+	    if(kv.second > max){
+	    	max = kv.second;
+	    	orientation=kv.first;
+	    }
+		//if(kv.second[0] != 0 && kv.second[1] != 0  && kv.second[2] != 0)
+	    //std::cout << kv.first << " has value " << kv.second << std::endl;
+	}
+
+}
+
 /*
  * iterates over the pixels in the edge map, and assigns them the orientation
  * of the majority of the 3x3 neighbourhood
  */
-/*void Contours::get_majority_colour(cv::Mat& orientation_map, cv::Mat& edges, cv::Mat& dst){
+void Contours::filter_majority_orientation(cv::Mat& orientation_map, cv::Mat& edges, cv::Mat& dst){
+	dst = cv::Mat::zeros(orientation_map.size(),orientation_map.type());
+	for(int i=1; i< edges.rows -1 ; i++){
+		for(int j=1; j< edges.cols -1; j++){
+			cv::Point2i p(j,i);
+			if(active(edges, p)){
+				cv::Vec3b max_value;
+				get_majority_orientation(orientation_map,p,max_value);
+				dst.at<cv::Vec3b>(p.y,p.x) = max_value;
 
-}*/
+			}
+		}
+	}
+}
 
 
 
@@ -343,11 +397,15 @@ void Contours::trace_contours(const cv::Mat& original_img,  cv::Mat& edges){
 	cv::Mat mask = cv::Mat::ones(edges.rows,edges.cols,CV_8UC1);
 	cv::Mat visited = cv::Mat::zeros(edges.rows,edges.cols,CV_8UC1);
 	cv::Mat display = cv::Mat::zeros(edges.rows,edges.cols, CV_8UC3);
-	cv::Mat ori,mag,visualise;
+	cv::Mat ori,mag,visualise,oriMapFiltered;
 	orientation(edges, ori,mag);
 	cv::Mat oriMap = visu_orientation_map2(mag,ori);
 	oriMap.copyTo(visualise/*, edges*/);
-	cv::imshow("orimap",visualise);
+
+	filter_majority_orientation(oriMap,edges,oriMapFiltered);
+	 oriMap = visu_orientation_map(mag,ori);
+	cv::imshow("orimap",oriMap);
+	cv::imshow("orimap filtered",oriMapFiltered);
 	cv::waitKey(0);
 
 	//sets the junction points to 0
@@ -366,6 +424,7 @@ void Contours::trace_contours(const cv::Mat& original_img,  cv::Mat& edges){
 	for(Contour c : contours){
 		//cv::imshow("contour", c.mask);
 
+		mark_high_curvature_points(c,oriMapFiltered);
 		cv::Mat edges_disp = edges.clone();
 		for(cv::Point2i& p : c.points){
 
@@ -378,6 +437,49 @@ void Contours::trace_contours(const cv::Mat& original_img,  cv::Mat& edges){
 	display_contours(contours);
 
 
+}
+
+/*
+ * --------------------------------------------
+ * Methods for detecting high curvature
+ * --------------------------------------------
+ */
+
+
+
+void Contours::mark_high_curvature_points(Contour& contour, const cv::Mat& orientation){
+
+	cv::Mat cropped_orientation, display;
+	orientation.copyTo(cropped_orientation, contour.mask);
+	display = cropped_orientation.clone();
+
+	for(cv::Point2i& p : contour.points){
+		if( high_curvature_point(cropped_orientation, contour,p)){
+			cv::circle(display,p,10,cv::Scalar(0,255,0));
+			cv::imshow("display", display);
+
+		}
+	}
+	cv::waitKey(0);
+}
+
+/*
+ * returns true if p is a high curvature point
+ */
+bool Contours::high_curvature_point(const cv::Mat& orientation,Contour& contour, const cv::Point& p){
+
+	std::vector<cv::Point2i> neighbours = get_neighbour_points_in_edge(contour,p);
+	cv::Vec3b colour = orientation.at<cv::Vec3b>(p.y,p.x);
+	int current_index = colour_indices_[colour];
+	for(cv::Point2i& n : neighbours){
+		colour = orientation.at<cv::Vec3b>(n.y,n.x);
+		int neigh_index = colour_indices_[colour];
+
+		if( std::abs(neigh_index - current_index) > 5)
+			return true;
+	}
+
+	return false;
 }
 
 /*
