@@ -395,15 +395,30 @@ void Contours::display_contours(std::vector<Contour>& contours){
 	cv::waitKey(0);
 }
 
+void Contours::find_contours_on_edge_map(cv::Mat& edges,std::vector<Contour>& contours){
+
+	cv::Mat mask = cv::Mat::ones(edges.rows,edges.cols,CV_8UC1);
+	cv::Mat visited = cv::Mat::zeros(edges.rows,edges.cols,CV_8UC1);
+	cv::Mat display = cv::Mat::zeros(edges.rows,edges.cols, CV_8UC3);
+	bool cont = true;
+	contours.clear();
+	while(cont){
+		Contour contour;
+		cont = trace_contour(edges, visited, mask,display, contour);
+		contours.push_back(contour);
+		//std::cout << contours.size()<<" # contours"<<std::endl;
+	}
+
+
+}
+
 /*
  * Traces every edge present in the edge map into a contour.
  * Right now it finds junctions as breaking points along the contours.
  * It should also find points where the curvature changes.
  */
 void Contours::trace_contours(const cv::Mat& original_img,  cv::Mat& edges){
-	cv::Mat mask = cv::Mat::ones(edges.rows,edges.cols,CV_8UC1);
-	cv::Mat visited = cv::Mat::zeros(edges.rows,edges.cols,CV_8UC1);
-	cv::Mat display = cv::Mat::zeros(edges.rows,edges.cols, CV_8UC3);
+
 	cv::Mat ori,mag,visualise,oriMapFiltered;
 	orientation(edges, ori,mag);
 	cv::Mat oriMap = visu_orientation_map2(mag,ori);
@@ -419,29 +434,36 @@ void Contours::trace_contours(const cv::Mat& original_img,  cv::Mat& edges){
 	clear_junctions(edges);
 
 	std::vector<Contour> contours;
-	bool cont = true;
-	while(cont){
-		Contour contour;
-		cont = trace_contour(edges, visited, mask,display, contour);
-		contours.push_back(contour);
-		std::cout << contours.size()<<" # contours"<<std::endl;
-	}
-
-	cv::imwrite("contours.png",display);
+	//find the contours
+	std::cout << ">tracing contours..."<<std::endl;
+	find_contours_on_edge_map( edges, contours);
+	//finds high curvature points
+	std::cout << ">removing high curvature points..."<<std::endl;
 	for(Contour c : contours){
 		//cv::imshow("contour", c.mask);
-
-		mark_high_curvature_points(c,oriMapFiltered);
+		std::vector<cv::Point> curvature_points;
+		mark_high_curvature_points(c,oriMapFiltered,curvature_points);
 		cv::Mat edges_disp = edges.clone();
-		for(cv::Point2i& p : c.points){
-
+		//sets the high curvature points to 0
+		for(cv::Point2i& p : curvature_points){
+			edges.at<uint8_t>(p.y,p.x) = 0;
+//			Junction j;
+//			j.top_left = true;
+//			j.p = p;
+//			clear_junction(edges, j);
 		}
-		//edges_disp.release();
-		//cv::waitKey(0);
 	}
+	cv::imshow("edges cleared", edges);
+
+
+	std::cout <<">removed high curvature points"<<std::endl;
+	//finds again the contours after breaking at high curvature points
+	find_contours_on_edge_map( edges, contours);
 
 	remove_noisy_contours(contours);
 	display_contours(contours);
+	while(true)
+		cv::waitKey(0);
 
 
 }
@@ -454,20 +476,46 @@ void Contours::trace_contours(const cv::Mat& original_img,  cv::Mat& edges){
 
 
 
-void Contours::mark_high_curvature_points(Contour& contour, const cv::Mat& orientation){
+void Contours::mark_high_curvature_points(Contour& contour, const cv::Mat& orientation,std::vector<cv::Point>& curvature_points){
 
+
+	curvature_points.clear();
 	cv::Mat cropped_orientation, display;
 	orientation.copyTo(cropped_orientation, contour.mask);
 	display = cropped_orientation.clone();
 
 	for(cv::Point2i& p : contour.points){
 		if( high_curvature_point(cropped_orientation, contour,p)){
-			cv::circle(display,p,10,cv::Scalar(0,255,0));
-			cv::imshow("display", display);
+			//cv::circle(display,p,10,cv::Scalar(0,255,0));
+			//cv::imshow("display", display);
+			curvature_points.push_back(p);
 
 		}
 	}
-	cv::waitKey(0);
+
+	//cv::waitKey(0);
+}
+
+
+int absmin(int a, int b){
+  if(std::abs(a)<std::abs(b))
+    return a;
+  else
+    return b;
+}
+
+int ModDist(int src, int dest, int m){
+  if(dest<src)
+    return absmin(dest+m-src, dest-src);
+  else
+    return absmin(dest-src, dest-m-src);
+}
+
+int Contours::bins_distance(int b1, int b2){
+	int dist = abs(ModDist(b1,b2,nintervals_));
+
+	//std::cout <<" dist between bins: "<<b1<<","<<b2<<" = "<<dist<<std::endl;
+	return dist;
 }
 
 /*
@@ -482,7 +530,7 @@ bool Contours::high_curvature_point(const cv::Mat& orientation,Contour& contour,
 		colour = orientation.at<cv::Vec3b>(n.y,n.x);
 		int neigh_index = colour_indices_[colour];
 
-		if( std::abs(neigh_index - current_index) > 5)
+		if( bins_distance(current_index, neigh_index) > 2)
 			return true;
 	}
 

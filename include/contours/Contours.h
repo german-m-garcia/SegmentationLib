@@ -65,7 +65,7 @@ private:
 	std::vector<cv::Point2i> get_active_non_visited_neighbours(const cv::Mat&src, cv::Mat& visited, cv::Point&p);
 	int neighbours(const cv::Mat& src, cv::Point& p);
 	std::vector<cv::Point2i> get_neighbour_points_in_edge(const Contour& c,const  cv::Point& p);
-
+	void find_contours_on_edge_map(cv::Mat& edges,std::vector<Contour>& contours);
 	std::vector<cv::Point2i> get_neighbour_points(const cv::Mat& src, const cv::Point&p);
 	void remove_noisy_contours(std::vector<Contour>& contours);
 	/*
@@ -84,8 +84,9 @@ private:
 	/*
 	 * high curvature methods
 	 */
-	void mark_high_curvature_points(Contour& contour, const cv::Mat& orientation);
+	void mark_high_curvature_points(Contour& contour, const cv::Mat& orientation,std::vector<cv::Point>& curvature_points);
 	bool high_curvature_point(const cv::Mat& orientation, Contour& contour,const cv::Point& p);
+	int bins_distance(int b1, int b2);
 
 
 
