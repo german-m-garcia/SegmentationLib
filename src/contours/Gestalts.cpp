@@ -22,35 +22,44 @@ Gestalts::~Gestalts() {
 }
 
 
+//return the percentage of inliers for the line of symmetry
 double Gestalts::symmetry(Contour& c1, Contour&c2){
+	//sort the points from one endpoint to the other one to simplify correspondences matching between the contours
+	//the set of correspondences is the set of points with the same index
 	std::vector<cv::Point2i> points1 = sort_contour_points(c1);
 	std::vector<cv::Point2i> points2 = sort_contour_points(c2);
 	
-	if(check_symmetry(points1, points2))
-		return 1.;
+	//check the symmetry for the current point order, and later for the reversed order
+	double sym_measure = check_symmetry(points1, points2);
 
+	//reverse one of the points set and then check symmetry
 	std::vector<cv::Point2i> reversedPoints2;
 	for(int i=points2.size()-1; i>= 0; i--)
 		reversedPoints2.push_back(points2[i]);
 
-	if(check_symmetry(points1, reversedPoints2))
-		return 1.;
+	double tmp_measure = check_symmetry(points1, reversedPoints2);
+	if(tmp_measure > sym_measure)
+		sym_measure = tmp_measure;
 
-	return 0.;
+	return sym_measure;
 }
 
 double Gestalts::similarity(Contour& c1, Contour&c2){
-
+	//returns similarity measure based on Hu invariants,, smaller value(near zero) means higher similarity 
 	double sim = cv::matchShapes(c1.points, c2.points, CV_CONTOURS_MATCH_I1, 0);
 
 	return sim;
 }
 
+
 double Gestalts::parallelity(Contour& c1, Contour&c2){
-	bool parallelity = false;
+	double parallelity = 0;
 	std::vector<cv::Point2i> points1 = sort_contour_points(c1);
 	std::vector<cv::Point2i> points2 = sort_contour_points(c2);
 
+	//compute the distance of the start point of the first contour to the start and end points of the second
+	//then use the minimum distance to decide if reversing the points is needed
+	//(the points of 2nd contour are reversed if the distance between start and end point is less than the distance between the two strat points) 
 	double d1 = sqrt( pow(points1[0].x - points2[0].x,2) + pow(points1[0].y - points2[0].y,2) );
 	double d2 = sqrt( pow(points1[0].x - points2[points2.size()-1].x,2) + pow(points1[0].y - points2[points2.size()-1].y,2) );
 
@@ -63,7 +72,70 @@ double Gestalts::parallelity(Contour& c1, Contour&c2){
 		parallelity = check_parallelity(points1, reversedPoints2);
 	}
 
-	if(parallelity)
+	return parallelity;
+}
+
+
+double Gestalts::continuity(Contour& c1, Contour&c2){
+	
+	int margin = 10;
+	if(c1.points.size() < margin || c2.points.size() < margin)
+		return 0.;
+
+	std::vector<cv::Point2i> points1 = sort_contour_points(c1);
+	std::vector<cv::Point2i> points2 = sort_contour_points(c2);
+
+	double dist[4];
+	dist[0] = sqrt(pow(points1[0].x - points2[0].x,2) + pow(points1[0].y - points2[0].y,2) );
+	dist[1] = sqrt(pow(points1[0].x - points2[points2.size()-1].x,2) + pow(points1[0].y - points2[points2.size()-1].y,2) );
+	dist[2] = sqrt(pow(points1[points1.size()-1].x - points2[0].x,2) + pow(points1[points1.size()-1].y - points2[0].y,2) );
+	dist[3] = sqrt(pow(points1[points1.size()-1].x - points2[points2.size()-1].x,2) + pow(points1[points1.size()-1].y - points2[points2.size()-1].y,2));
+
+	double minDist = 99999.;
+	int minIndx = 0;
+	for(int i=0; i<4; i++)
+	{
+		if(dist[i] < minDist)
+		{
+			minDist = dist[i];
+			minIndx = i;
+		}
+	}
+	cv::Point2i p1A, p1B, p2A, p2B;
+	switch(minIndx){
+		case 0: p1A = points1[0];
+				p2A = points2[0];
+				p1B = points1[margin];
+				p2B = points2[margin];
+				break;
+		case 1: p1A = points1[0];
+				p2A = points2[points2.size()-1];
+				p1B = points1[margin];
+				p2B = points2[points2.size()-margin-1];
+				break;
+		case 2: p1A = points1[points1.size()-1];
+				p2A = points2[0];
+				p1B = points1[points1.size()-margin-1];
+				p2B = points2[margin];
+				break;
+		case 3: p1A = points1[points1.size()-1];
+				p2A = points2[points2.size()-1];
+				p1B = points1[points1.size()-margin-1];
+				p2B = points2[points2.size()-margin-1];
+				break;
+	}
+
+	double d_1B1A = sqrt( pow(p1B.x - p1A.x,2) + pow(p1B.y - p1A.y,2) );
+	double d_1B2A = sqrt( pow(p1B.x - p2A.x,2) + pow(p1B.y - p2A.y,2) );
+	double d_2B1A = sqrt( pow(p2B.x - p1A.x,2) + pow(p2B.y - p1A.y,2) );
+	double d_2B2A = sqrt( pow(p2B.x - p2A.x,2) + pow(p2B.y - p2A.y,2) );
+	double d_1B2B = sqrt( pow(p1B.x - p2B.x,2) + pow(p1B.y - p2B.y,2) );
+
+	double angle12 = acos( (d_1B1A*d_1B1A + d_2B1A*d_2B1A - d_1B2B*d_1B2B)/(2*d_1B1A*d_2B1A) ); //law of cosines
+	double angle21 = acos( (d_1B2A*d_1B2A + d_2B2A*d_2B2A - d_1B2B*d_1B2B)/(2*d_1B2A*d_2B2A) );
+
+	double refAngle = 135.*M_PI/180.; 
+	if(angle12 > refAngle && angle21 > refAngle)
 		return 1.;
 
 	return 0.;
@@ -117,7 +189,7 @@ std::vector<cv::Point2i> Gestalts::sort_contour_points(Contour& c){
 }
 
 //check if the midpoints between the two point sets form a line
-bool Gestalts::check_symmetry(std::vector<cv::Point2i> points1, std::vector<cv::Point2i> points2){
+double Gestalts::check_symmetry(std::vector<cv::Point2i> points1, std::vector<cv::Point2i> points2){
 
 	std::vector<cv::Point2i> symmetryLine;
 
@@ -140,24 +212,38 @@ bool Gestalts::check_symmetry(std::vector<cv::Point2i> points1, std::vector<cv::
 			nInliers++;
 	}
 
-	if(nInliers >= conf*symmetryLine.size())
-		return true;
+	//std::cout<<"sym measure: "<<nInliers*1.0/symmetryLine.size()<<std::endl;
+	//if(nInliers >= conf*symmetryLine.size())
+	//	return true;
 
-	return false;
+	//return false;
+
+	return nInliers*1.0/symmetryLine.size();
 }
 
-
-bool Gestalts::check_parallelity(std::vector<cv::Point2i> points1, std::vector<cv::Point2i> points2){
+//return the percentage of points that agrees with the avg distance between the correspondences
+double Gestalts::check_parallelity(std::vector<cv::Point2i> points1, std::vector<cv::Point2i> points2){
 
 	double tolerance = 5.;
-	double refDist = sqrt( pow(points1[0].x - points2[0].x,2) + pow(points1[0].y - points2[0].y,2) );
+	double avgDist = 0;
+	std::vector<double> distances;
 
+	//compute the avg distance between the two contours
 	for(int i=0; i< std::min(points1.size(), points2.size()) ; i++)
 	{
 		double dist = sqrt( pow(points1[i].x - points2[i].x,2) + pow(points1[i].y - points2[i].y,2) );
-		if(fabs(dist - refDist) > tolerance)
-			return false;
+		distances.push_back(dist);
+		avgDist += dist;
 	}
 
-	return true;
+	avgDist = avgDist/distances.size();
+	int nInliers = 0;
+	//compute the number of points that agree with the avg distance
+	for(int i=0; i< distances.size() ; i++)
+	{
+		if(fabs(distances[i] - avgDist) < tolerance)
+			nInliers++;
+	}
+
+	return nInliers*1.0/distances.size();
 }

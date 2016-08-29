@@ -40,17 +40,15 @@ int main(int argc, char ** argv) {
 				c2.points.push_back(cv::Point2i(j,i));
 		}
 
-	if(g.symmetry(c1,c2))
-		cout<<"Symmetric ... "<<endl;
-	else
-		cout<<"Not Symmetric ... "<<endl;
 
-	if(g.parallelity(c1,c2))
-		cout<<"Parallel ... "<<endl;
-	else
-		cout<<"Not Parallel ... "<<endl;
+	cout<<"Symmetry measure: "<<g.symmetry(c1,c2)*100<<" %"<<endl;
+	cout<<"Parallelity measure: "<<g.parallelity(c1,c2)*100<<" %"<<endl;
+	cout<<"Similarity measure = "<<g.similarity(c1,c2)<<" (closer value to zero means higher similarity)"<<endl;;
 
-	std::cout<<"similarity measure = "<<g.similarity(c1,c2)<<std::endl;;
+	if(g.continuity(c1,c2))
+		cout<<"Good continuity ... "<<endl;
+	else
+		cout<<"Not good continuity ... "<<endl<<endl;
 
 	return 0;
 
