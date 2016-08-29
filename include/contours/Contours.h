@@ -9,15 +9,31 @@
 #define SRC_CONTOURS_CONTOURS_H_
 
  #define active(src, p)  (src.at<uint8_t>(p.y, p.x) > 0)
+#define inactive(src, p)  (src.at<uint8_t>(p.y, p.x) == 0)
 
 #include <opencv2/core/core.hpp>
 
-struct Contour {
+class Contour {
 
-
+public:
 	std::vector<cv::Point2i> points;
 	cv::Mat mask;
 	cv::Vec3b colour;
+	std::vector<cv::Point2i> end_points;
+
+	void colour_sides();
+
+	static bool sort_points(const cv::Point2i& p1, const cv::Point2i& p2){
+		return ((p1.x < p2.x) || ( p1.x == p2.x && p1.y < p2.y));
+
+
+	}
+	std::vector<cv::Point2i> get_neighbour_points_in_edge( const cv::Point& p);
+	std::vector<cv::Point2i> get_neighbour_points(cv::Mat& src, const cv::Point& p);
+	bool end_point(const cv::Mat& src, cv::Point2i& p);
+
+
+
 
 
 };
@@ -32,6 +48,8 @@ struct Junction {
 };
 
 class Contours {
+
+	friend class Contour;
 public:
 	Contours();
 	virtual ~Contours();
@@ -65,8 +83,10 @@ private:
 	std::vector<cv::Point2i> get_active_non_visited_neighbours(const cv::Mat&src, cv::Mat& visited, cv::Point&p);
 	int neighbours(const cv::Mat& src, cv::Point& p);
 	std::vector<cv::Point2i> get_neighbour_points_in_edge(const Contour& c,const  cv::Point& p);
+	std::vector<cv::Point2i> get_5x5_neighbour_points_in_edge(const Contour& c,const  cv::Point& p);
 	void find_contours_on_edge_map(cv::Mat& edges,std::vector<Contour>& contours);
 	std::vector<cv::Point2i> get_neighbour_points(const cv::Mat& src, const cv::Point&p);
+	std::vector<cv::Point2i> get_5x5_neighbour_points(const cv::Mat& src, const cv::Point&p);
 	void remove_noisy_contours(std::vector<Contour>& contours);
 	/*
 	 * junctions
@@ -78,8 +98,8 @@ private:
 	/*
 	 * binned orientation map
 	 */
-	void filter_majority_orientation(cv::Mat& orientation_map, cv::Mat& edges, cv::Mat& dst);
-	void get_majority_orientation(cv::Mat& orientation_map, cv::Point2i& p, cv::Vec3b& orientation);
+	void filter_majority_orientation(const cv::Mat& orientation_map, cv::Mat& edges, cv::Mat& dst);
+	void get_majority_orientation(const cv::Mat& orientation_map, cv::Point2i& p, cv::Vec3b& orientation);
 
 	/*
 	 * high curvature methods
@@ -101,7 +121,7 @@ private:
 	std::vector<cv::Vec3b> colours_;
 	std::map<cv::Vec3b, int,compare_colors<cv::Vec3b>> colour_indices_;
 
-
+	const int HIGH_CURVATURE_INDEX_DIFFERENCE = 3;
 
 
 

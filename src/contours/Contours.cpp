@@ -15,9 +15,10 @@
 //initialise the Random Number Generator
 cv::RNG Contours::rng = cv::RNG();
 
-Contours::Contours(): minimum_size_(35),red_(0, 0, 255), red2_(0, 125, 255), cyan_(255, 255, 0), cyan2_(255, 255, 125),
+Contours::Contours(): minimum_size_(25),red_(0, 0, 255), red2_(0, 125, 255), cyan_(255, 255, 0), cyan2_(255, 255, 125),
 green_(0, 255, 0), green2_(125, 255, 0), yellow_(0, 255, 255), yellow2_(125, 255, 255),
 		nintervals_(8),intervals_(nintervals_), colours_({red_,red2_,cyan_,cyan2_,green_,green2_,yellow_,yellow2_}) {
+	//nintervals_(4),intervals_(nintervals_), colours_({red_,cyan_,green_,yellow_}) {
 
 	for(int i= 0;i<nintervals_;i++){
 		colour_indices_[colours_[i]] = i;
@@ -52,7 +53,27 @@ void Contours::compute_edges(cv::Mat& src, cv::Mat& edges){
 
 }
 
+/*
+ * returns a vector of points that are neighbours in a 3x3 kernel neighbourhood along
+ * the edge of contour  &c
+ */
 std::vector<cv::Point2i> Contours::get_neighbour_points_in_edge(const Contour& c, const cv::Point& p){
+	std::vector<cv::Point2i> return_points;
+	std::vector<cv::Point2i> neighs = get_5x5_neighbour_points(c.mask,p);//get_neighbour_points(c.mask,p);
+
+	for(cv::Point2i& neighbour : neighs){
+		if( active( c.mask, neighbour) )
+			return_points.push_back(neighbour);
+
+	}
+	return return_points;
+}
+
+/*
+ * returns a vector of points that are neighbours in a 5x5 kernel neighbourhood along
+ * the edge of contour  &c
+ */
+std::vector<cv::Point2i> Contours::get_5x5_neighbour_points_in_edge(const Contour& c, const cv::Point& p){
 	std::vector<cv::Point2i> return_points;
 	std::vector<cv::Point2i> neighs = get_neighbour_points(c.mask,p);
 
@@ -64,17 +85,73 @@ std::vector<cv::Point2i> Contours::get_neighbour_points_in_edge(const Contour& c
 	return return_points;
 }
 
-std::vector<cv::Point2i> Contours::get_active_non_visited_neighbours(const cv::Mat&src, cv::Mat& visited, cv::Point&p){
+/*
+ *  cv::Mat &edges: the input edge map (CV_8UC1)
+ *  cv::Mat & visited: the mat (CV_8UC1) of visited pixels in the edge map
+ *  cv::Point &p: the input pixel
+ *  returns a vector of pixels that are marked as non-visited in the edge map,
+ *  for a given pixel in the image &p
+ */
+std::vector<cv::Point2i> Contours::get_active_non_visited_neighbours(const cv::Mat&edges, cv::Mat& visited, cv::Point&p){
 	std::vector<cv::Point2i> return_points;
-	std::vector<cv::Point2i> neighs = get_neighbour_points(src,p);
+	std::vector<cv::Point2i> neighs = get_neighbour_points(edges,p);
 
 	for(cv::Point2i& neighbour : neighs){
-		if( src.at<uint8_t>(neighbour.y, neighbour.x) > 0 &&  visited.at<uint8_t>(neighbour.y, neighbour.x) == 0){
+		if( edges.at<uint8_t>(neighbour.y, neighbour.x) > 0 &&  visited.at<uint8_t>(neighbour.y, neighbour.x) == 0){
 			return_points.push_back(neighbour);
 		}
 	}
 	return return_points;
 
+}
+
+/*
+ * returns a vector with the neighbouring pixels for a given pixel p
+ */
+std::vector<cv::Point2i> Contours::get_5x5_neighbour_points(const cv::Mat& src, const cv::Point&p){
+
+	/*
+	 *  ------------> (x) cols
+	 * |  9  10 11 12 13
+	 * |  14 1  2  3  15
+	 * |  16 4  p  5  17
+	 * |  18 6  7  8  19
+	 * |  20 21 22 23 24
+	 * v
+	 * (y) rows
+	 */
+
+	std::vector<cv::Point2i> neighbour_points_3x3 = get_neighbour_points(src,p);
+	cv::Point2i p9(p.x -2, p.y-2);
+	cv::Point2i p10(p.x -1, p.y-2);
+	cv::Point2i p11(p.x , p.y-2);
+	cv::Point2i p12(p.x +1, p.y-2);
+	cv::Point2i p13(p.x +2, p.y-2);
+
+	cv::Point2i p14(p.x -2, p.y-1);
+	cv::Point2i p15(p.x +2, p.y-1);
+
+	cv::Point2i p16(p.x -2, p.y);
+	cv::Point2i p17(p.x +2, p.y);
+
+	cv::Point2i p18(p.x -2, p.y+1);
+	cv::Point2i p19(p.x +2, p.y+1);
+
+	cv::Point2i p20(p.x -2, p.y+2);
+	cv::Point2i p21(p.x -1, p.y+2);
+	cv::Point2i p22(p.x , p.y+2);
+	cv::Point2i p23(p.x +1, p.y+2);
+	cv::Point2i p24(p.x +2, p.y+2);
+
+	std::vector<cv::Point2i> neighbour_points_5x5({p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19,p20,p21,p22,p23,p24}),return_neighbour_points;
+	neighbour_points_5x5.insert(neighbour_points_5x5.end(), neighbour_points_3x3.begin(), neighbour_points_3x3.end());
+
+
+	if((p.x >= 2 && p.x < src.cols -2) && (p.y >= 2 && p.y < src.rows -2)){
+		//normal case
+		return neighbour_points_5x5;
+	}
+	return return_neighbour_points;
 }
 
 /*
@@ -142,6 +219,7 @@ cv::Mat Contours::visu_orientation_map(const cv::Mat& mag, const cv::Mat& ori, d
     for(int i = 0; i < mag.rows*mag.cols; i++)
     {
         float* magPixel = reinterpret_cast<float*>(mag.data + i*sizeof(float));
+
         if(*magPixel > thresh)
         {
             float* oriPixel = reinterpret_cast<float*>(ori.data + i*sizeof(float));
@@ -187,8 +265,11 @@ cv::Mat Contours::visu_orientation_map2(const cv::Mat& mag, const cv::Mat& ori, 
 	for(int i = 0; i < mag.rows*mag.cols; i++)
     {
         float* magPixel = reinterpret_cast<float*>(mag.data + i*sizeof(float));
+
         if(*magPixel > thresh)
         {
+//        	std::cout <<" magPixel="<<*magPixel<<" thres="<<thresh << std::endl;
+//        	std::cout << "mag.type()="<<mag.type()<<std::endl;
             float* oriPixel = reinterpret_cast<float*>(ori.data + i*sizeof(float));
             cv::Vec3b* mapPixel = reinterpret_cast<cv::Vec3b*>(oriMap.data + i*3*sizeof(char));
             float radians = (*oriPixel);
@@ -210,8 +291,10 @@ cv::Mat Contours::visu_orientation_map2(const cv::Mat& mag, const cv::Mat& ori, 
 
 
 
-
-void Contours::get_majority_orientation(cv::Mat& orientation_map, cv::Point2i& p, cv::Vec3b& orientation){
+/*
+ * assigns
+ */
+void Contours::get_majority_orientation(const cv::Mat& orientation_map, cv::Point2i& p, cv::Vec3b& orientation){
 	std::vector<cv::Point2i> neighbours = get_neighbour_points(orientation_map, p);
 	std::map<cv::Vec3b, int, compare_colors<cv::Vec3b>> countmap;
 	int max = 0;
@@ -243,7 +326,7 @@ void Contours::get_majority_orientation(cv::Mat& orientation_map, cv::Point2i& p
  * iterates over the pixels in the edge map, and assigns them the orientation
  * of the majority of the 3x3 neighbourhood
  */
-void Contours::filter_majority_orientation(cv::Mat& orientation_map, cv::Mat& edges, cv::Mat& dst){
+void Contours::filter_majority_orientation(const cv::Mat& orientation_map, cv::Mat& edges, cv::Mat& dst){
 	dst = cv::Mat::zeros(orientation_map.size(),orientation_map.type());
 	for(int i=1; i< edges.rows -1 ; i++){
 		for(int j=1; j< edges.cols -1; j++){
@@ -406,6 +489,7 @@ void Contours::find_contours_on_edge_map(cv::Mat& edges,std::vector<Contour>& co
 		Contour contour;
 		cont = trace_contour(edges, visited, mask,display, contour);
 		contours.push_back(contour);
+
 		//std::cout << contours.size()<<" # contours"<<std::endl;
 	}
 
@@ -419,14 +503,17 @@ void Contours::find_contours_on_edge_map(cv::Mat& edges,std::vector<Contour>& co
  */
 void Contours::trace_contours(const cv::Mat& original_img,  cv::Mat& edges){
 
-	cv::Mat ori,mag,visualise,oriMapFiltered;
+	cv::Mat ori,mag,visualise,oriMapFiltered,tmp;
 	orientation(edges, ori,mag);
 	cv::Mat oriMap = visu_orientation_map2(mag,ori);
 	oriMap.copyTo(visualise/*, edges*/);
 
 	filter_majority_orientation(oriMap,edges,oriMapFiltered);
+	tmp = oriMapFiltered.clone();
+	filter_majority_orientation(tmp,edges,oriMapFiltered);
 
 	cv::imshow("orimap",visualise);
+	cv::imshow("orimap not filtered",tmp);
 	cv::imshow("orimap filtered",oriMapFiltered);
 	cv::waitKey(0);
 
@@ -439,7 +526,7 @@ void Contours::trace_contours(const cv::Mat& original_img,  cv::Mat& edges){
 	find_contours_on_edge_map( edges, contours);
 	//finds high curvature points
 	std::cout << ">removing high curvature points..."<<std::endl;
-	for(Contour c : contours){
+	for(Contour& c : contours){
 		//cv::imshow("contour", c.mask);
 		std::vector<cv::Point> curvature_points;
 		mark_high_curvature_points(c,oriMapFiltered,curvature_points);
@@ -462,6 +549,14 @@ void Contours::trace_contours(const cv::Mat& original_img,  cv::Mat& edges){
 
 	remove_noisy_contours(contours);
 	display_contours(contours);
+
+	//compute properties for the contours
+	std::cout <<">> finding the colour of each side of the edges"<<std::endl;
+	for(Contour c : contours){
+		c.colour_sides();
+	}
+	std::cout <<">> sides coloured"<<std::endl;
+
 	while(true)
 		cv::waitKey(0);
 
@@ -526,13 +621,40 @@ bool Contours::high_curvature_point(const cv::Mat& orientation,Contour& contour,
 	std::vector<cv::Point2i> neighbours = get_neighbour_points_in_edge(contour,p);
 	cv::Vec3b colour = orientation.at<cv::Vec3b>(p.y,p.x);
 	int current_index = colour_indices_[colour];
+	int dist = 0, max_dist = 0, i =0;
+	const int n_elements = 25;
+	std::vector<int> indices(n_elements);
+	std::vector< std::vector<int>> scores;
+	indices[0] = current_index;
+
 	for(cv::Point2i& n : neighbours){
 		colour = orientation.at<cv::Vec3b>(n.y,n.x);
 		int neigh_index = colour_indices_[colour];
-
-		if( bins_distance(current_index, neigh_index) > 2)
-			return true;
+		if( bins_distance(current_index, neigh_index) >= HIGH_CURVATURE_INDEX_DIFFERENCE)
+				return true;
 	}
+
+	//This is an alternative way to compute high curvature points.
+	//It searches for the maximum difference in curvature among
+	//every pair of points in the 5x5 or 3x3 kernel
+	/*for(cv::Point2i& n : neighbours){
+		colour = orientation.at<cv::Vec3b>(n.y,n.x);
+		int neigh_index = colour_indices_[colour];
+		indices[i] = neigh_index;
+		i++;
+	}
+	for(int j = 0; j< n_elements; j++){
+		for(int k=0;k<n_elements;k++){
+			dist = bins_distance(indices[j], indices[k]);
+			if(dist > HIGH_CURVATURE_INDEX_DIFFERENCE)
+				return true;
+			if(dist> max_dist)
+				max_dist = dist;
+		}
+	}
+	if(max_dist > HIGH_CURVATURE_INDEX_DIFFERENCE)
+		return true;*/
+
 
 	return false;
 }
@@ -700,9 +822,11 @@ bool Contours::junction(const cv::Mat& src, cv::Point2i& p, Junction& j){
  */
 void Contours::orientation(const cv::Mat& src, cv::Mat& ori, cv::Mat& mag){
 	cv::Mat Sx;
-	cv::Sobel(src, Sx, CV_32F, 1, 0, 3);
+	//cv::Sobel(src, Sx, CV_32F, 1, 0, 3);
+	cv::Scharr(src, Sx, CV_32F, 1, 0, 3);
 	cv::Mat Sy;
-	cv::Sobel(src, Sy, CV_32F, 0, 1, 3);
+	//cv::Sobel(src, Sy, CV_32F, 0, 1, 3);
+	cv::Scharr(src, Sy, CV_32F, 0, 1, 3);
 	cv::phase(Sx, Sy, ori, true);
 	cv::magnitude(Sx, Sy, mag);
 }
@@ -740,6 +864,7 @@ bool Contours::trace_contour(const cv::Mat& src, cv::Mat& visited , cv::Mat& mas
 
 	//start exploring neighbours at the seed
 	std::vector<cv::Point2i> neighbours = get_active_non_visited_neighbours(src, visited, seed);
+
 	contour.points.insert( contour.points.end(), neighbours.begin(), neighbours.end() );
 	while(neighbours.size()>0){
 		cv::Point2i local_seed = neighbours[neighbours.size()-1];
@@ -760,10 +885,12 @@ bool Contours::trace_contour(const cv::Mat& src, cv::Mat& visited , cv::Mat& mas
 		//cv::waitKey(0);
 
 		std::vector<cv::Point2i> local_neighbours = get_active_non_visited_neighbours(src, visited, local_seed);
+
 		if(local_neighbours.size()>0){
 			neighbours.insert( neighbours.end(), local_neighbours.begin(), local_neighbours.end() );
 			contour.points.insert( contour.points.end(), local_neighbours.begin(), local_neighbours.end() );
 		}
+
 
 
 
@@ -775,4 +902,367 @@ bool Contours::trace_contour(const cv::Mat& src, cv::Mat& visited , cv::Mat& mas
 
 }
 
+/*
+ * Contour class methods
+ *
+ *
+ *
+ *
+ */
 
+
+/*
+ *
+ */
+std::vector<cv::Point2i> Contour::get_neighbour_points(cv::Mat& src, const cv::Point& p){
+	/*
+		 *  ------------> (x) cols
+		 * |
+		 * |    1 2 3
+		 * |    4 p 5
+		 * |    6 7 8
+		 * v
+		 * (y) rows
+		 */
+
+		cv::Point2i p1(p.x -1, p.y-1);
+		cv::Point2i p2(p.x , p.y-1);
+		cv::Point2i p3(p.x +1, p.y-1);
+
+		cv::Point2i p4(p.x -1, p.y);
+		cv::Point2i p5(p.x +1, p.y);
+
+		cv::Point2i p6(p.x -1, p.y+1);
+		cv::Point2i p7(p.x , p.y+1);
+		cv::Point2i p8(p.x +1, p.y+1);
+
+
+		std::vector<cv::Point2i> all_neighbour_points({p1,p2,p3,p4,p5,p6,p7}), return_neighbour_points;
+		// 			cols         					rows
+		if((p.x >= 1 && p.x < src.cols -1) && (p.y >= 1 && p.y < src.rows -1)){
+			//normal case
+			return all_neighbour_points;
+		}
+		return return_neighbour_points;
+}
+
+
+/*
+ * returns a vector of points that are neighbours in a 3x3 kernel neighbourhood along
+ * the edge of contour  &c
+ */
+std::vector<cv::Point2i> Contour::get_neighbour_points_in_edge( const cv::Point& p){
+	std::vector<cv::Point2i> return_points;
+
+	std::vector<cv::Point2i> neighs = get_neighbour_points(mask,p);//get_neighbour_points(c.mask,p);
+
+	for(cv::Point2i& neighbour : neighs){
+		if( active( mask, neighbour) )
+			return_points.push_back(neighbour);
+
+	}
+	return return_points;
+}
+
+/*
+ *
+ * Returns true if point p is a junction. The junction information
+ * is returned in &j.
+ */
+bool Contour::end_point(const cv::Mat& src, cv::Point2i& p){
+
+
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |    1 2 3
+	 * |    4 p 5
+	 * |    6 7 8
+	 * v
+	 * (y) rows
+	 */
+
+
+	cv::Point2i p1(p.x -1, p.y-1);
+	cv::Point2i p2(p.x , p.y-1);
+	cv::Point2i p3(p.x +1, p.y-1);
+
+	cv::Point2i p4(p.x -1, p.y);
+	cv::Point2i p5(p.x +1, p.y);
+
+	cv::Point2i p6(p.x -1, p.y+1);
+	cv::Point2i p7(p.x , p.y+1);
+	cv::Point2i p8(p.x +1, p.y+1);
+	std::vector<cv::Point2i> neighbours({p1,p2,p3,p4,p5,p6,p7,p8});
+	if(p.x == 0|| p.x == src.cols-1 || p.y == 0 || p.y == src.rows-1)
+		return false;
+
+
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |     1
+	 * |      p
+	 * |
+	 * v
+	 * (y) rows
+	 */
+	if( active(src,p1)&&  inactive(src,p2) &&  inactive(src,p3) && inactive(src,p4) && inactive(src,p5) && inactive(src,p6) && inactive(src,p7) && inactive(src,p8)){
+
+		return true;
+	}
+
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |       3
+	 * |      p
+	 * |
+	 * v
+	 * (y) rows
+	 */
+	if( inactive(src,p1)&&  inactive(src,p2) &&  active(src,p3) && inactive(src,p4) && inactive(src,p5) && inactive(src,p6) && inactive(src,p7) && inactive(src,p8)){
+
+		return true;
+	}
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |
+	 * |      p
+	 * |     6
+	 * v
+	 * (y) rows
+	 */
+	if( inactive(src,p1)&&  inactive(src,p2) &&  inactive(src,p3) && inactive(src,p4) && inactive(src,p5) && active(src,p6) && inactive(src,p7) && inactive(src,p8)){
+
+		return true;
+	}
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |
+	 * |      p
+	 * |       8
+	 * v
+	 * (y) rows
+	 */
+	if( inactive(src,p1)&&  inactive(src,p2) &&  inactive(src,p3) && inactive(src,p4) && inactive(src,p5) && inactive(src,p6) && inactive(src,p7) && active(src,p8)){
+
+		return true;
+	}
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |      2 3
+	 * |      p
+	 * |
+	 * v
+	 * (y) rows
+	 */
+	if(inactive(src,p1) && active(src,p2)&&  active(src,p3) && inactive(src,p4) && inactive(src,p5) && inactive(src,p6) && inactive(src,p7) && inactive(src,p8)){
+
+		return true;
+	}
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |    1 2
+	 * |      p
+	 * |
+	 * v
+	 * (y) rows
+	 */
+	if( active(src,p1)&&  active(src,p2) && inactive(src,p3) && inactive(src,p4) && inactive(src,p5) && inactive(src,p6) && inactive(src,p7) && inactive(src,p8)){
+
+		return true;
+	}
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |      2
+	 * |      p
+	 * |
+	 * v
+	 * (y) rows
+	 */
+	if(active(src,p2)  && inactive(src,p1)  && inactive(src,p3) && inactive(src,p4) && inactive(src,p5) && inactive(src,p6) && inactive(src,p7) && inactive(src,p8)){
+
+		return true;
+	}
+
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |    1
+	 * |    4 p
+	 * |
+	 * v
+	 * (y) rows
+	 */
+	if( active(src,p1)&&  active(src,p4) && inactive(src,p2) && inactive(src,p3) && inactive(src,p5)  && inactive(src,p6)  && inactive(src,p7) && inactive(src,p8)){
+
+		return true;
+	}
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |
+	 * |    4 p
+	 * |    6
+	 * v
+	 * (y) rows
+	 */
+	if( inactive(src,p1) && active(src,p6)&&  active(src,p4) && inactive(src,p2) && inactive(src,p3) && inactive(src,p5) && inactive(src,p7) && inactive(src,p8)){
+
+		return true;
+	}
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |
+	 * |    4 p
+	 * |
+	 * v
+	 * (y) rows
+	 */
+	if(  active(src,p4)  && inactive(src,p1) && inactive(src,p2) && inactive(src,p3) && inactive(src,p5)  && inactive(src,p6) && inactive(src,p7) && inactive(src,p8)){
+
+		return true;
+	}
+
+	//upwards
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |
+	 * |      p
+	 * |    6 7
+	 * v
+	 * (y) rows
+	 */
+	if( active(src,p6)&&  active(src,p7) && inactive(src,p1) && inactive(src,p2) && inactive(src,p3) && inactive(src,p4) && inactive(src,p5) && inactive(src,p8) ){
+
+		return true;
+	}
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |
+	 * |      p
+	 * |      7 8
+	 * v
+	 * (y) rows
+	 */
+	if( active(src,p8)&&  active(src,p7) && inactive(src,p1) && inactive(src,p2) && inactive(src,p3) && inactive(src,p4) && inactive(src,p5)  && inactive(src,p6) ){
+
+		return true;
+	}
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |
+	 * |      p
+	 * |      7
+	 * v
+	 * (y) rows
+	 */
+	if(  active(src,p7) && inactive(src,p1) && inactive(src,p2) && inactive(src,p3) && inactive(src,p4) && inactive(src,p5)  && inactive(src,p6)  && inactive(src,p8)  ){
+
+		return true;
+	}
+
+	//to the left
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |        3
+	 * |      p 5
+	 * |
+	 * v
+	 * (y) rows
+	 */
+	if( active(src,p3)&&  active(src,p5) && inactive(src,p1) && inactive(src,p2) && inactive(src,p4) && inactive(src,p6) && inactive(src,p7) && inactive(src,p8) ){
+
+		return true;
+	}
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |
+	 * |      p 5
+	 * |        8
+	 * v
+	 * (y) rows
+	 */
+	if( active(src,p8)&&  active(src,p5) && inactive(src,p1) && inactive(src,p2)  && inactive(src,p3) && inactive(src,p4) && inactive(src,p6) && inactive(src,p7) ){
+
+		return true;
+	}
+
+	/*
+	 *  ------------> (x) cols
+	 * |
+	 * |
+	 * |      p 5
+	 * |
+	 * v
+	 * (y) rows
+	 */
+	if( active(src,p5) && inactive(src,p1) && inactive(src,p2)  && inactive(src,p3)  && inactive(src,p4) && inactive(src,p6) && inactive(src,p7)  && inactive(src,p8)  ){
+
+		return true;
+	}
+
+
+	return false;
+
+}
+
+
+/*
+ * finds out the colour at both sides of the contour
+ * by performing morphological operations
+ */
+void Contour::colour_sides(){
+
+
+
+
+	//first, obtains one blob at each side of the contour
+
+	cv::Mat tmp,dilated_mask, display = cv::Mat::zeros(mask.rows, mask.cols, CV_8UC1);
+	cv::dilate(mask,tmp,cv::Mat());
+	cv::dilate(tmp,dilated_mask,cv::Mat());
+	//remove the points of the original contour
+	for(cv::Point& p : points){
+		if(end_point(mask, p))
+			display.at<uint8_t>(p.y,p.x) = 255;
+	}
+	cv::dilate(display,tmp,cv::Mat());
+	cv::dilate(tmp,display,cv::Mat());
+	dilated_mask.setTo(0,mask);
+	dilated_mask.setTo(0,display);
+
+	//get the blobs
+
+	//cv::imshow("two sides mask", dilated_mask);
+	//cv::imshow("display contour ends", display);
+	//cv::waitKey(0);
+}

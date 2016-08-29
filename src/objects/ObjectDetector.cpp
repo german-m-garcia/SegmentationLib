@@ -783,7 +783,7 @@ bool ObjectDetector::test_data(std::vector<Segment*>& test_segments,
 	if(unify)
 		unify_detections(mask);
 	else{
-		dilate(mask,mask,Mat());
+		//dilate(mask,mask,Mat());
 	}
 
 	vector<Rect> rects;
