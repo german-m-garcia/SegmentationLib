@@ -141,6 +141,10 @@ target_link_libraries( contours SEGMENTATION  ${Boost_LIBRARIES} ${PCL_LIBRARIES
 add_executable(harris ${PROJECT_SOURCE_DIR}/apps/test_harris.cpp)
 target_link_libraries( harris SEGMENTATION  ${Boost_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS}) 
 
+#Create an Executable for testing gestalts
+add_executable(gestalts ${PROJECT_SOURCE_DIR}/apps/test_gestalts.cpp)
+target_link_libraries( gestalts SEGMENTATION  ${Boost_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
+
 
 
 #Create an Executable for segment reader
