@@ -14,7 +14,6 @@ if(OpenCV_FOUND)
 endif()
 message("OpenCV_LIBS (2.4?) = ${OpenCV_LIBS}")
 
-find_package(Qt4 COMPONENTS Widgets Declarative)
 
 #PCL
 #set(PCL_DIR "~/workspace/pcl/build/")

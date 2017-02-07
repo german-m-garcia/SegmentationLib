@@ -20,8 +20,9 @@ public:
 	cv::Mat mask;
 	cv::Vec3b colour;
 	std::vector<cv::Point2i> end_points;
+	cv::Vec3i col_avg_side1_,col_avg_side2_;
 
-	void colour_sides();
+	void colour_sides(const cv::Mat& originalMat, cv::Mat& oriMapFiltered);
 
 	static bool sort_points(const cv::Point2i& p1, const cv::Point2i& p2){
 		return ((p1.x < p2.x) || ( p1.x == p2.x && p1.y < p2.y));
@@ -32,6 +33,11 @@ public:
 	std::vector<cv::Point2i> get_neighbour_points(cv::Mat& src, const cv::Point& p);
 	bool end_point(const cv::Mat& src, cv::Point2i& p);
 
+	void get_sides_contour_point(cv::Point& p, cv::Mat& oriMapFiltered, cv::Point& side1, cv::Point& side2);
+
+	static void histogram(const cv::Mat& src, cv::Mat& contour_mat);
+
+	bool colour_similarity(const Contour& a, const Contour& b);
 
 
 

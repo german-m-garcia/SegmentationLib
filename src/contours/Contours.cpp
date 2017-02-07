@@ -15,7 +15,7 @@
 //initialise the Random Number Generator
 cv::RNG Contours::rng = cv::RNG();
 
-Contours::Contours(): minimum_size_(25),red_(0, 0, 255), red2_(0, 125, 255), cyan_(255, 255, 0), cyan2_(255, 255, 125),
+Contours::Contours(): minimum_size_(20),red_(0, 0, 255), red2_(0, 125, 255), cyan_(255, 255, 0), cyan2_(255, 255, 125),
 green_(0, 255, 0), green2_(125, 255, 0), yellow_(0, 255, 255), yellow2_(125, 255, 255),
 		nintervals_(8),intervals_(nintervals_), colours_({red_,red2_,cyan_,cyan2_,green_,green2_,yellow_,yellow2_}) {
 	//nintervals_(4),intervals_(nintervals_), colours_({red_,cyan_,green_,yellow_}) {
@@ -496,6 +496,11 @@ void Contours::find_contours_on_edge_map(cv::Mat& edges,std::vector<Contour>& co
 
 }
 
+bool Contour::colour_similarity(const Contour& a, const Contour& b){
+	double dist1 = cv::norm
+	if(a.col_avg_side1_)
+}
+
 /*
  * Traces every edge present in the edge map into a contour.
  * Right now it finds junctions as breaking points along the contours.
@@ -552,10 +557,23 @@ void Contours::trace_contours(const cv::Mat& original_img,  cv::Mat& edges){
 
 	//compute properties for the contours
 	std::cout <<">> finding the colour of each side of the edges"<<std::endl;
+	int elements = 2*contours.size();
+	int index=0;
+	cv::Mat contours_colours(1,elements,CV_8UC3);
+
 	for(Contour c : contours){
-		c.colour_sides();
+		c.colour_sides(original_img,oriMapFiltered);
+//		contours_colours.at<cv::Vec3b>(0,index) = c.col_avg_side1_;
+//		index++;
+//		contours_colours.at<cv::Vec3b>(0,index) = c.col_avg_side2_;
+//		index++;
 	}
-	std::cout <<">> sides coloured"<<std::endl;
+//	cv::Mat mask;
+//	Contour::histogram(contours_colours,mask);
+//	std::cout <<">> sides coloured"<<std::endl;
+
+
+	//partition the contours according to similarity
 
 	while(true)
 		cv::waitKey(0);
@@ -1235,34 +1253,176 @@ bool Contour::end_point(const cv::Mat& src, cv::Point2i& p){
 
 }
 
+void Contour::get_sides_contour_point(cv::Point& p, cv::Mat& oriMapFiltered, cv::Point& side1, cv::Point& side2){
+	//figure out its orientation
+	uint8_t offset = 2;
+	uint8_t ori = oriMapFiltered.at<uint8_t>(p.y,p.x);
+	//assume we have 8 orientation bins
+	switch (ori) {
+		//red contours (vertical line)
+		case 0:
+			side1.x = p.x-offset;
+			side1.y = p.y;
+			side2.x = p.x+offset;
+			side2.y = p.y;
+			break;
+		case 1:
+			side1.x = p.x-offset;
+			side1.y = p.y;
+			side2.x = p.x+offset;
+			side2.y = p.y;
+			break;
+		//cyan (horizontal leaning left)
+		case 2:
+			side1.x = p.x+offset;
+			side1.y = p.y+offset;
+			side2.x = p.x-offset;
+			side2.y = p.y-offset;
+			break;
+		case 3:
+			side1.x = p.x+offset;
+			side1.y = p.y+offset;
+			side2.x = p.x-offset;
+			side2.y = p.y-offset;
+			break;
+		//yellow (horizontal leaning right)
+		case 4:
+			side1.x = p.x+offset;
+			side1.y = p.y-offset;
+			side2.x = p.x-offset;
+			side2.y = p.y+offset;
+			break;
+		case 5:
+			side1.x = p.x+offset;
+			side1.y = p.y-offset;
+			side2.x = p.x-offset;
+			side2.y = p.y+offset;
+			break;
+		//green (horizontal)
+		case 6:
+			side1.x = p.x;
+			side1.y = p.y-offset;
+			side2.x = p.x;
+			side2.y = p.y+offset;
+			break;
+		case 7:
+			side1.x = p.x;
+			side1.y = p.y-offset;
+			side2.x = p.x;
+			side2.y = p.y+offset;
+			break;
+		default:
+			break;
+	}
+}
+
+void Contour::histogram(const cv::Mat& src, cv::Mat& contour_mat){
+
+
+
+	  /// Separate the image in 3 places ( B, G and R )
+	  std::vector<cv::Mat> bgr_planes;
+	  cv::split( src, bgr_planes );
+
+	  /// Establish the number of bins
+	  int histSize = 64;
+
+	  /// Set the ranges ( for B,G,R) )
+	  float range[] = { 0, 256 } ;
+	  const float* histRange = { range };
+
+	  bool uniform = true; bool accumulate = false;
+
+	  cv::Mat b_hist, g_hist, r_hist;
+
+	  /// Compute the histograms:
+	  cv::calcHist( &bgr_planes[0], 1, 0, contour_mat, b_hist, 1, &histSize, &histRange, uniform, accumulate );
+	  cv::calcHist( &bgr_planes[1], 1, 0, contour_mat, g_hist, 1, &histSize, &histRange, uniform, accumulate );
+	  cv::calcHist( &bgr_planes[2], 1, 0, contour_mat, r_hist, 1, &histSize, &histRange, uniform, accumulate );
+
+	  // Draw the histograms for B, G and R
+	  int hist_w = 512; int hist_h = 400;
+	  int bin_w = cvRound( (double) hist_w/histSize );
+
+	  cv::Mat histImage( hist_h, hist_w, CV_8UC3, cv::Scalar( 0,0,0) );
+
+	  /// Normalize the result to [ 0, histImage.rows ]
+	  cv::normalize(b_hist, b_hist, 0, histImage.rows, cv::NORM_MINMAX, -1, cv::Mat() );
+	  cv::normalize(g_hist, g_hist, 0, histImage.rows, cv::NORM_MINMAX, -1, cv::Mat() );
+	  cv::normalize(r_hist, r_hist, 0, histImage.rows, cv::NORM_MINMAX, -1, cv::Mat() );
+
+	  /// Draw for each channel
+	  for( int i = 1; i < histSize; i++ )
+	  {
+		  cv::line( histImage, cv::Point( bin_w*(i-1), hist_h - cvRound(b_hist.at<float>(i-1)) ) ,
+				  cv::Point( bin_w*(i), hist_h - cvRound(b_hist.at<float>(i)) ),
+				  cv::Scalar( 255, 0, 0), 2, 8, 0  );
+		  cv::line( histImage, cv::Point( bin_w*(i-1), hist_h - cvRound(g_hist.at<float>(i-1)) ) ,
+				  cv::Point( bin_w*(i), hist_h - cvRound(g_hist.at<float>(i)) ),
+				  cv::Scalar( 0, 255, 0), 2, 8, 0  );
+		  cv::line( histImage, cv::Point( bin_w*(i-1), hist_h - cvRound(r_hist.at<float>(i-1)) ) ,
+				  cv::Point( bin_w*(i), hist_h - cvRound(r_hist.at<float>(i)) ),
+				  cv::Scalar( 0, 0, 255), 2, 8, 0  );
+	  }
+
+	  /// Display
+	  cv::namedWindow("calcHist Demo", CV_WINDOW_AUTOSIZE );
+	  cv::imshow("calcHist Demo", histImage );
+
+	  cv::waitKey(0);
+
+}
 
 /*
  * finds out the colour at both sides of the contour
  * by performing morphological operations
  */
-void Contour::colour_sides(){
+void Contour::colour_sides(const cv::Mat& originalMat, cv::Mat& oriMapFiltered){
 
 
-
-
-	//first, obtains one blob at each side of the contour
-
-	cv::Mat tmp,dilated_mask, display = cv::Mat::zeros(mask.rows, mask.cols, CV_8UC1);
-	cv::dilate(mask,tmp,cv::Mat());
-	cv::dilate(tmp,dilated_mask,cv::Mat());
-	//remove the points of the original contour
+	//iterate over each point in the contour
 	for(cv::Point& p : points){
-		if(end_point(mask, p))
-			display.at<uint8_t>(p.y,p.x) = 255;
+		//figure out its orientation
+		cv::Point2i pside1, pside2;
+		get_sides_contour_point(p, oriMapFiltered, pside1, pside2);
+		cv::Vec3b colour1 = originalMat.at<cv::Vec3b>(pside1.y, pside1.x);
+		cv::Vec3b colour2 = originalMat.at<cv::Vec3b>(pside2.y, pside2.x);
+
+		col_avg_side1_ += colour1;
+		col_avg_side2_ += colour2;
 	}
-	cv::dilate(display,tmp,cv::Mat());
-	cv::dilate(tmp,display,cv::Mat());
-	dilated_mask.setTo(0,mask);
-	dilated_mask.setTo(0,display);
+	col_avg_side1_[0] /= points.size();
+	col_avg_side1_[1] /= points.size();
+	col_avg_side1_[2] /= points.size();
+	col_avg_side2_[0] /= points.size();
+	col_avg_side2_[1] /= points.size();
+	col_avg_side2_[2] /= points.size();
+	//debug info
+	cv::Mat side1_debug = cv::Mat::zeros(originalMat.rows,originalMat.cols,CV_8UC3);
+	cv::Mat side2_debug = cv::Mat::zeros(originalMat.rows,originalMat.cols,CV_8UC3);
+	for(cv::Point& p : points){
+		//colour both sides
+		cv::Point2i pside1, pside2;
+		get_sides_contour_point(p, oriMapFiltered, pside1, pside2);
+		side1_debug.at<cv::Vec3b>(pside1.y, pside1.x) = (cv::Vec3b)col_avg_side1_;
+		side2_debug.at<cv::Vec3b>(pside2.y, pside2.x) = (cv::Vec3b)col_avg_side2_;
+	}
+	cv::dilate(side1_debug,side1_debug,cv::Mat());
+	cv::dilate(side2_debug,side2_debug,cv::Mat());
 
-	//get the blobs
+	std::cout <<" colour side1= "<<col_avg_side1_<<" colour side2= "<<col_avg_side2_<<std::endl;
+	if(false){
+		cv::imshow("originalMat", originalMat);
+		cv::imshow("contour", mask);
+		cv::imshow("side1_debug", side1_debug);
+		cv::imshow("side2_debug", side2_debug);
+		cv::Mat sidemask;
+		cv::cvtColor( side1_debug, sidemask, CV_BGR2GRAY );
+		histogram(originalMat,sidemask);
+		cv::cvtColor( side2_debug, sidemask, CV_BGR2GRAY );
+		histogram(originalMat,sidemask);
 
-	//cv::imshow("two sides mask", dilated_mask);
-	//cv::imshow("display contour ends", display);
-	//cv::waitKey(0);
+		cv::waitKey(0);
+	}
+
 }
