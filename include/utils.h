@@ -78,6 +78,9 @@ public:
 	void compute_integral_normals(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 			pcl::PointCloud<pcl::Normal>::Ptr& normals);
 
+	void compute_vfh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
+			pcl::PointCloud<pcl::Normal>::Ptr& normals,pcl::PointCloud<pcl::VFHSignature308>::Ptr& vfhFeatures);
+
 	void compute_vfh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud, pcl::PointCloud<pcl::Normal>::Ptr& normals, cv::Mat& vfh_features);
 
 	void compute_fpfh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,pcl::PointCloud<pcl::FPFHSignature33>::Ptr& fpfhs);
@@ -118,6 +121,7 @@ public:
 
 	void display_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,pcl::PointCloud<pcl::Normal>::Ptr normals,string& text);
 
+	void display_cloud(pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud, string& text);
 
 	void display_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud, string& text);
 

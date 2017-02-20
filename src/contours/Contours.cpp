@@ -497,8 +497,9 @@ void Contours::find_contours_on_edge_map(cv::Mat& edges,std::vector<Contour>& co
 }
 
 bool Contour::colour_similarity(const Contour& a, const Contour& b){
-	double dist1 = cv::norm
-	if(a.col_avg_side1_)
+	//double dist1 = cv::norm
+	//if(a.col_avg_side1_)
+	return true;
 }
 
 /*

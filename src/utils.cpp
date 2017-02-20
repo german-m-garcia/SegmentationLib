@@ -321,6 +321,17 @@ void Utils::display_cloud(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 	viewer.spin();
 }
 
+void Utils::display_cloud(pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud,
+		string& text) {
+	pcl::visualization::PCLVisualizer viewer(text);
+	//viewer.setBackgroundColor(0, 0, 0);
+	viewer.addPointCloud < pcl::PointXYZ> (cloud, text);
+	viewer.addCoordinateSystem(0.5);
+	viewer.setPointCloudRenderingProperties(
+			pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, text);
+	viewer.spin();
+}
+
 /*
  * !brief Displays the points of the cloud specified by the indices vector
  *
@@ -507,7 +518,7 @@ void Utils::compute_normals(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 	normal_estimator.setSearchMethod(tree);
 	normal_estimator.setInputCloud(cloud);
 	normal_estimator.setRadiusSearch(0.03);
-	//normal_estimator.setKSearch(50);
+	//normal_estimator.setKSearch(20);
 	normal_estimator.compute(*normals);
 
 //	pcl::IntegralImageNormalEstimation<pcl::PointXYZRGB, pcl::Normal> ne;
@@ -539,48 +550,50 @@ void Utils::compute_integral_normals(
 }
 
 void Utils::compute_vfh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
+		pcl::PointCloud<pcl::Normal>::Ptr& normals,pcl::PointCloud<pcl::VFHSignature308>::Ptr& vfhFeatures){
+
+
+	pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree(
+			new pcl::search::KdTree<pcl::PointXYZRGB>);
+
+	// Setup the feature computation
+	typedef pcl::VFHEstimation<pcl::PointXYZRGB, pcl::Normal,
+			pcl::VFHSignature308> VFHEstimationType;
+	VFHEstimationType vfhEstimation;
+
+	// Provide the original point cloud (without normals)
+	vfhEstimation.setInputCloud(cloud);
+
+	// Provide the point cloud with normals
+	vfhEstimation.setInputNormals(normals);
+
+	// Use the same KdTree from the normal estimation
+	vfhEstimation.setSearchMethod(tree);
+
+	vfhEstimation.setRadiusSearch (0.2);
+	vfhEstimation.setNormalizeBins(true);
+	// Actually compute the VFH features
+	vfhEstimation.compute(*vfhFeatures);
+}
+
+void Utils::compute_vfh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 		pcl::PointCloud<pcl::Normal>::Ptr& normals, Mat& vfh_features) {
 
-//	if (cloud->points.size() == 0) {
-//		vfh_features = Mat::zeros(1, 397, CV_32FC1);
-//		return;
-//	}
-//
-//	pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree(
-//			new pcl::search::KdTree<pcl::PointXYZRGB>);
-//
-//	// Setup the feature computation
-//	typedef pcl::VFHEstimation<pcl::PointXYZRGB, pcl::Normal,
-//			pcl::VFHSignature308> VFHEstimationType;
-//	VFHEstimationType vfhEstimation;
-//
-//	// Provide the original point cloud (without normals)
-//	vfhEstimation.setInputCloud(cloud);
-//
-//	// Provide the point cloud with normals
-//	vfhEstimation.setInputNormals(normals);
-//
-//	// Use the same KdTree from the normal estimation
-//	vfhEstimation.setSearchMethod(tree);
-//
-//	//vfhEstimation.setRadiusSearch (0.2); // With this, error: "Both radius (.2) and K (1) defined! Set one of them to zero first and then re-run compute()"
-//
-//	// Actually compute the VFH features
-//	pcl::PointCloud<pcl::VFHSignature308>::Ptr vfhFeatures(
-//			new pcl::PointCloud<pcl::VFHSignature308>);
-//	vfhEstimation.compute(*vfhFeatures);
-//
-//	//std::cout << "output points.size (): " << vfhFeatures->points.size()
-//	//		<< std::endl; // This outputs 1 - should be 397!
-//
-//	// Display and retrieve the shape context descriptor vector for the 0th point.
-//	pcl::VFHSignature308 descriptor = vfhFeatures->points[0];
-////	VFHEstimationType::PointCloudOut::PointType descriptor2 =
-////			vfhFeatures->points[0];
-//	vfh_features.create(1, descriptor.descriptorSize(), CV_32FC1);
-//	for (int i = 0; i < descriptor.descriptorSize(); i++) {
-//		vfh_features.at<float>(0, i) = descriptor.histogram[i];
-//	}
+	pcl::PointCloud<pcl::VFHSignature308>::Ptr vfhFeatures(new pcl::PointCloud<pcl::VFHSignature308>);
+	compute_vfh(cloud,normals,vfhFeatures);
+
+	//std::cout << "output points.size (): " << vfhFeatures->points.size()
+	//		<< std::endl; // This outputs 1 - should be 397!
+
+	// Display and retrieve the shape context descriptor vector for the 0th point.
+	pcl::VFHSignature308 descriptor = vfhFeatures->points[0];
+
+//	VFHEstimationType::PointCloudOut::PointType descriptor2 =
+//			vfhFeatures->points[0];
+	vfh_features.create(1, 308, CV_32FC1);
+	for (int i = 0; i <308; i++) {
+		vfh_features.at<float>(0, i) = descriptor.histogram[i];
+	}
 
 }
 
@@ -672,7 +685,7 @@ void Utils::compute_fpfh(pcl::PointCloud<pcl::PointXYZRGB>::Ptr& cloud,
 
 	// Use all neighbors in a sphere of radius 5cm
 	// IMPORTANT: the radius used here has to be larger than the radius used to estimate the surface normals!!!
-	fpfh.setRadiusSearch(0.05);
+	fpfh.setRadiusSearch(0.10);
 
 	// Compute the features
 	fpfh.compute(*fpfhs);
