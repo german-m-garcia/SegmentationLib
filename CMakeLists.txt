@@ -14,6 +14,8 @@ if(OpenCV_FOUND)
 endif()
 message("OpenCV_LIBS (2.4?) = ${OpenCV_LIBS}")
 
+find_package(HDF5)
+
 
 #PCL
 #set(PCL_DIR "~/workspace/pcl/build/")
@@ -24,6 +26,12 @@ add_definitions(${PCL_DEFINITIONS})
 find_package(CUDA REQUIRED) 
 
 find_package(Boost REQUIRED program_options)
+
+find_package(FLANN)
+include_directories(${FLANN_INCLUDE_DIRS})
+
+include_directories(${HDF5_INCLUDE_DIR})
+
 
 add_definitions(-DHAVE_STRING_H)
 
@@ -144,6 +152,15 @@ target_link_libraries( harris SEGMENTATION  ${Boost_LIBRARIES} ${PCL_LIBRARIES} 
 add_executable(gestalts ${PROJECT_SOURCE_DIR}/apps/test_gestalts.cpp)
 target_link_libraries( gestalts SEGMENTATION  ${Boost_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
+#Create an Executable for testing features on rendered CAD mdels
+add_executable(cads ${PROJECT_SOURCE_DIR}/apps/test_cads.cpp)
+target_link_libraries( cads SEGMENTATION  ${Boost_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS})
+
+add_executable(nn ${PROJECT_SOURCE_DIR}/apps/nn.cpp)
+target_link_libraries( nn SEGMENTATION  ${Boost_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS} ${HDF5_hdf5_LIBRARY})
+
+add_executable(test_nn ${PROJECT_SOURCE_DIR}/apps/test_nn.cpp)
+target_link_libraries( test_nn SEGMENTATION  ${Boost_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS} ${HDF5_hdf5_LIBRARY} ${FLANN_LIBRARIES} )
 
 
 #Create an Executable for segment reader
